@@ -371,15 +371,21 @@ describe('PHASE 7: CORS is an allow-list, not a single trusted origin', () => {
     test('FRONTEND_URL remains an implicit member', () => {
         process.env.FRONTEND_URL = 'https://app.example.com';
         delete process.env.CORS_ORIGINS;
-        assert.deepEqual(corsOrigins(), ['https://app.example.com']);
+        assert.deepEqual(corsOrigins(), [
+            'https://app.example.com',
+            'https://laxalab.com',
+            'https://www.laxalab.com',
+        ]);
     });
 
     test('CORS_ORIGINS adds origins and deduplicates', () => {
         process.env.FRONTEND_URL = 'https://app.example.com';
         process.env.CORS_ORIGINS =
-            'https://admin.example.com, https://app.example.com, https://pay.example.com';
+            'https://admin.example.com, https://app.example.com, https://pay.example.com, https://laxalab.com';
         assert.deepEqual(corsOrigins(), [
             'https://app.example.com',
+            'https://laxalab.com',
+            'https://www.laxalab.com',
             'https://admin.example.com',
             'https://pay.example.com',
         ]);
@@ -390,7 +396,7 @@ describe('PHASE 7: CORS is an allow-list, not a single trusted origin', () => {
         process.env.CORS_ORIGINS = 'https://learner.example.com';
         const list = corsOrigins();
         assert.ok(!list.includes('https://evil.example.com'), 'unknown origins never appear');
-        assert.equal(list.length, 1, 'only the configured member is allowed');
+        assert.equal(list.length, 3, 'only configured Render and LaxaLab origins appear');
     });
 
     test('restores the environment', () => {
