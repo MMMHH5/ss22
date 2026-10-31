@@ -62,7 +62,6 @@ const LEARNER_ONLY_ON_ADMIN = [
     '/dashboard/payments',
     '/dashboard/refunds',
     '/dashboard/my-courses',
-    '/dashboard/batch-chats',
     '/dashboard/teaching',
     '/dashboard/instructor-profile',
 ];
