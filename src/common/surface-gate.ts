@@ -64,6 +64,10 @@ export function surfaceGate(req: Request, res: Response, next: NextFunction): vo
     const path = req.path;
 
     if (process.env.ADMIN_SURFACE === '1') {
+        if (req.method === 'POST' && path === '/operations/track') {
+            next();
+            return;
+        }
         if ([...ALWAYS_OPEN, ...AUTH_OPEN].some((p) => isOpen(path, p))) {
             next();
             return;

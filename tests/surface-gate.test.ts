@@ -30,12 +30,13 @@ function token(claims: Record<string, unknown>) {
     return jwt.sign(claims, SECRET, { algorithm: 'HS256', expiresIn: '10m' });
 }
 
-function call(opts: { path: string; bearer?: string }) {
+function call(opts: { path: string; method?: string; bearer?: string }) {
     let status = 0;
     let body: any = null;
     let passed = false;
     const req: any = {
         path: opts.path,
+        method: opts.method || 'GET',
         headers: opts.bearer ? { authorization: `Bearer ${opts.bearer}` } : {},
     };
     const res: any = {
@@ -97,6 +98,14 @@ describe('ADMIN_SURFACE=1 (admin host)', () => {
         ]) {
             assert.equal(call({ path }).passed, true, `${path} must be reachable anonymously`);
         }
+    });
+
+    test('anonymous client tracking is open only for its POST endpoint', () => {
+        process.env.ADMIN_SURFACE = '1';
+        assert.equal(call({ path: '/operations/track', method: 'POST' }).passed, true);
+        assert.equal(call({ path: '/operations/track', method: 'GET' }).status, 403);
+        assert.equal(call({ path: '/operations' }).status, 403);
+        assert.equal(call({ path: '/operations/track/extra', method: 'POST' }).status, 403);
     });
 
     test('registration is NOT part of the handshake', () => {
