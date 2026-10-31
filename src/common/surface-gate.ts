@@ -25,7 +25,14 @@ import * as jwt from 'jsonwebtoken';
 const ALWAYS_OPEN = ['/health', '/socket.io'];
 
 /** What a browser may call before it owns any token. */
-const AUTH_OPEN = ['/auth/login', '/auth/refresh', '/auth/2fa/', '/auth/forgot-password', '/auth/reset-password'];
+const AUTH_OPEN = [
+    '/auth/login',
+    '/auth/refresh',
+    '/auth/2fa/',
+    '/auth/forgot-password',
+    '/auth/reset-password',
+    '/auth/google',
+];
 
 export type Claims =
     | { state: 'ok'; payload: Record<string, unknown> }

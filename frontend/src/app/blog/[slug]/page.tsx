@@ -1,10 +1,8 @@
 import type { Metadata } from 'next';
 import BlogPost from './BlogPost.client';
+import { API_BASE_URL, SITE_URL } from '@/lib/deployment-urls';
 
 export const dynamic = 'force-dynamic';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
 type Props = {
     params: Promise<{ slug: string }>;

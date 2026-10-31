@@ -10,6 +10,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../auth/permissions/permissions';
 import { Role } from '@prisma/client';
+import { readPrivateUpload } from '../common/private-uploads';
 
 @ApiTags('Instructor Applications')
 @ApiBearerAuth('JWT-auth')
@@ -41,9 +42,11 @@ export class AdminInstructorApplicationsController {
     @RequirePermissions(PERMISSIONS.INSTRUCTORS_READ)
     async downloadCv(@Param('id') id: string, @Res() res: Response) {
         const abs = await this.instructorApplicationsService.getCvPath(id);
+        const content = await readPrivateUpload(abs);
         res.setHeader('X-Content-Type-Options', 'nosniff');
         res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
         res.setHeader('Content-Disposition', `inline; filename="${basename(abs).replace(/["\\\r\n]/g, '')}"`);
-        return res.sendFile(abs);
+        res.type(basename(abs));
+        return res.send(content);
     }
 }

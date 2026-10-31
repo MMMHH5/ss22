@@ -14,8 +14,6 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { existsSync, mkdirSync, unlink } from 'fs';
-import { diskStorage } from 'multer';
 import { PaymentGatewaysService } from './payment-gateways.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -25,12 +23,12 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../auth/permissions/permissions';
 import { Role } from '@prisma/client';
-import { hasValidSignature } from '../common/file-signatures';
+import { hasValidUploadedSignature } from '../common/file-signatures';
+import { createUploadStorage, removeUploadedFile, uploadUrl } from '../common/upload-storage';
 import { CreatePaymentGatewayDto, UpdatePaymentGatewayDto } from './dto/payment-gateway.dto';
 
 const ALLOWED_IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const ALLOWED_VIDEO_MIMES = ['video/mp4', 'video/webm', 'video/quicktime'];
-const UPLOAD_DIR = './uploads/payments';
 
 @ApiTags('Payment Gateways')
 @ApiBearerAuth('JWT-auth')
@@ -55,12 +53,9 @@ export class AdminPaymentGatewaysController {
     @RequirePermissions(PERMISSIONS.PAYMENTS_SETTINGS)
     @Post('media')
     @UseInterceptors(FileInterceptor('file', {
-        storage: diskStorage({
-            destination: (req, file, cb) => {
-                if (!existsSync(UPLOAD_DIR)) mkdirSync(UPLOAD_DIR, { recursive: true });
-                cb(null, UPLOAD_DIR);
-            },
-            filename: (req, file, cb) => {
+        storage: createUploadStorage({
+            destination: () => './uploads/payments',
+            filename: (_req, file) => {
                 const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
                 const mimeToExt: Record<string, string> = {
                     'image/jpeg': '.jpg',
@@ -72,7 +67,7 @@ export class AdminPaymentGatewaysController {
                     'video/quicktime': '.mov',
                 };
                 // Extension comes from the validated MIME type, never the client filename.
-                cb(null, `gateway-${unique}${mimeToExt[file.mimetype] || '.bin'}`);
+                return `gateway-${unique}${mimeToExt[file.mimetype] || '.bin'}`;
             },
         }),
         fileFilter: (req, file, cb) => {
@@ -82,17 +77,17 @@ export class AdminPaymentGatewaysController {
         },
         limits: { fileSize: 100 * 1024 * 1024, files: 1, fields: 10, fieldSize: 1 * 1024 * 1024, parts: 20 },
     }))
-    async uploadGuideMedia(@UploadedFile() file: any, @Req() req: any) {
+    async uploadGuideMedia(@UploadedFile() file: Express.Multer.File, @Req() req: any) {
         if (!file) throw new BadRequestException('File is required.');
 
-        if (!hasValidSignature(file.path, file.mimetype)) {
-            unlink(file.path, () => { });
+        if (!hasValidUploadedSignature(file)) {
+            await removeUploadedFile(file);
             throw new BadRequestException('File content does not match its declared type.');
         }
 
         const isVideo = ALLOWED_VIDEO_MIMES.includes(file.mimetype);
         return {
-            url: `${UPLOAD_DIR.replace('./', '')}/${file.filename}`,
+            url: uploadUrl(file),
             kind: isVideo ? 'video' : 'image',
             size: file.size,
             mimetype: file.mimetype,

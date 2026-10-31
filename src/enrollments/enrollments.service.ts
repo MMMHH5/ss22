@@ -5,10 +5,9 @@ import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ChatService } from '../chat/chat.service';
 import { FinanceService } from '../finance/finance.service';
-import { resolvePrivateUpload } from '../common/private-uploads';
+import { removePrivateUpload, resolvePrivateUpload } from '../common/private-uploads';
 import { claimSeat, releaseSeat, assertOpeningEligible, CapacityConflictException } from '../common/opening-seats';
 import { Classroom, ClassroomBatch, ClassroomSessionRow, resolveClassroom } from '../common/classroom';
-import { unlink } from 'fs';
 
 /**
  * One roster row shape, shared by the per-course and per-opening views. Both
@@ -782,9 +781,11 @@ export class EnrollmentsService {
 
         if (enrollment.receiptFileUrl) {
             try {
-                const path = resolvePrivateUpload(enrollment.receiptFileUrl, ['receipts']);
-                unlink(path, () => {});
-            } catch { /* the row is gone either way; a stray file is not worth failing over */ }
+                const path = await resolvePrivateUpload(enrollment.receiptFileUrl, ['receipts']);
+                await removePrivateUpload(path);
+            } catch (error) {
+                if (!(error instanceof NotFoundException)) throw error;
+            }
         }
 
         if (enrollment.openingId) {

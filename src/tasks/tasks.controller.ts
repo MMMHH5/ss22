@@ -1,7 +1,5 @@
 import { Controller, Get, Post, Patch, Delete, Param, Body, Query, UseGuards, Request, BadRequestException, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { existsSync, mkdirSync, unlink } from 'fs';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { TasksService } from './tasks.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -11,14 +9,12 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../auth/permissions/permissions';
 import { Role } from '@prisma/client';
-import { hasValidSignature } from '../common/file-signatures';
+import { hasValidUploadedSignature } from '../common/file-signatures';
+import { createUploadStorage, removeUploadedFile, uploadUrl } from '../common/upload-storage';
 
 const STAFF_ROLES = [Role.ADMIN, Role.COURSE_MANAGER, Role.INSTRUCTOR];
 
 const uploadDir = './uploads/tasks';
-if (!existsSync(uploadDir)) {
-    mkdirSync(uploadDir, { recursive: true });
-}
 
 /**
  * Extensions we will hand out for a submission.
@@ -27,7 +23,7 @@ if (!existsSync(uploadDir)) {
  * instructor has to be able to receive a .docx, a .zip of source, a .py or a
  * .mp4. What is not negotiable is that the *stored* name is decided by the
  * server: the original filename is kept in the database as metadata for
- * display, and the file on disk is written under a generated name with a
+ * display, and the stored object uses a generated name with a
  * sanitised extension, so an upload cannot drop a `.php`, a double extension
  * or a path into the folder. Anything without an extension is stored as
  * `.bin`, and the file is removed again if its bytes do not match the declared
@@ -111,9 +107,9 @@ export class TasksController {
     @Roles(Role.STUDENT)
     @Post(':id/submit-file')
     @UseInterceptors(FileInterceptor('file', {
-        storage: diskStorage({
-            destination: uploadDir,
-            filename: (req: any, file: any, cb: any) => cb(null, safeStoredName(file.originalname, file.mimetype)),
+        storage: createUploadStorage({
+            destination: () => uploadDir,
+            filename: (_req, file) => safeStoredName(file.originalname, file.mimetype),
         }),
         limits: {
             // Assignment work is a document or a source bundle, not a video
@@ -126,25 +122,25 @@ export class TasksController {
             parts: 15,
         },
     }))
-    async uploadSubmissionFile(@Param('id') id: string, @UploadedFile() file: any, @Request() req: any) {
+    async uploadSubmissionFile(@Param('id') id: string, @UploadedFile() file: Express.Multer.File, @Request() req: any) {
         if (!file) {
             throw new BadRequestException('File is required.');
         }
-        // The interceptor has already streamed the file to disk by the time the
-        // handler runs, so a rejected request has to take the file back off it.
+        // The interceptor has already stored the file by the time the handler
+        // runs, so a rejected request has to remove it from storage.
         // Without this, any authenticated student could park arbitrary bytes in
         // the uploads volume for a task they are not enrolled in.
         try {
             await this.tasksService.assertStudentCanSubmit(id, req.user.userId);
-            if (file.mimetype && !hasValidSignature(file.path, file.mimetype)) {
+            if (file.mimetype && !hasValidUploadedSignature(file)) {
                 throw new BadRequestException('File content does not match its declared type.');
             }
         } catch (err) {
-            unlink(file.path, () => { /* best-effort cleanup */ });
+            await removeUploadedFile(file);
             throw err;
         }
         return {
-            url: `/uploads/tasks/${file.filename}`,
+            url: uploadUrl(file),
             name: file.originalname || file.filename,
             size: file.size,
             mimetype: file.mimetype || null,

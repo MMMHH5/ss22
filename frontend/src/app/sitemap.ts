@@ -1,7 +1,5 @@
 import type { MetadataRoute } from 'next';
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+import { API_BASE_URL, SITE_URL } from '@/lib/deployment-urls';
 
 function alternates(path: string) {
   return {
@@ -44,7 +42,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Public blog posts
   try {
-    const res = await fetch(`${API_URL}/blog?page=1&pageSize=500`, { next: { revalidate: 3600 } });
+    const res = await fetch(`${API_BASE_URL}/blog?page=1&pageSize=500`, { next: { revalidate: 3600 } });
     if (res.ok) {
       const data = await res.json();
       const items = (data?.items ?? []) as { slug?: string; publishedAt?: string }[];
@@ -66,7 +64,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Public courses
   try {
-    const res = await fetch(`${API_URL}/courses`, { next: { revalidate: 3600 } });
+    const res = await fetch(`${API_BASE_URL}/courses`, { next: { revalidate: 3600 } });
     if (res.ok) {
       const data = (await res.json()) as { id?: string }[];
       if (Array.isArray(data)) {

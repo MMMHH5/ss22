@@ -1,10 +1,9 @@
 import { Controller, Get, Post, Patch, Body, Param, Delete, UseGuards, Request, Ip, UseInterceptors, UploadedFile, BadRequestException, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { existsSync, mkdirSync, unlink } from 'fs';
 import { CoursesService } from './courses.service';
-import { hasValidSignature } from '../common/file-signatures';
+import { hasValidUploadedSignature } from '../common/file-signatures';
+import { createUploadStorage, removeUploadedFile, uploadUrl } from '../common/upload-storage';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
@@ -42,15 +41,13 @@ export class AdminCoursesController {
     @RequirePermissions(PERMISSIONS.COURSES_WRITE)
     @Post('media')
     @UseInterceptors(FileInterceptor('file', {
-        storage: diskStorage({
-            destination: (req: any, file, cb) => {
+        storage: createUploadStorage({
+            destination: (req) => {
                 const kind = (req.query.kind as string) || 'general';
                 const safeKind = /^[a-z0-9_-]+$/i.test(kind) ? kind : 'general';
-                const dir = `./uploads/courses/${safeKind}`;
-                if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-                cb(null, dir);
+                return `./uploads/courses/${safeKind}`;
             },
-            filename: (req: any, file, cb) => {
+            filename: (_req, file) => {
                 const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
                 // Use fixed extension based on validated MIME type
                 const mimeToExt: Record<string, string> = {
@@ -63,8 +60,8 @@ export class AdminCoursesController {
                     'video/quicktime': '.mov',
                 };
                 const ext = mimeToExt[file.mimetype] || '.bin';
-                cb(null, `course-${uniqueSuffix}${ext}`);
-            }
+                return `course-${uniqueSuffix}${ext}`;
+            },
         }),
         fileFilter: (req, file, cb) => {
             const allowed = ALLOWED_IMAGE_MIMES.includes(file.mimetype) || ALLOWED_VIDEO_MIMES.includes(file.mimetype);
@@ -82,21 +79,21 @@ export class AdminCoursesController {
             parts: 30,
         }
     }))
-    uploadMedia(
-        @UploadedFile() file: any,
+    async uploadMedia(
+        @UploadedFile() file: Express.Multer.File,
         @Query('kind') kind: string,
         @Request() req: any
     ) {
         if (!file) {
             throw new BadRequestException('File is required.');
         }
-        if (!hasValidSignature(file.path, file.mimetype)) {
-            unlink(file.path, () => { /* best-effort cleanup */ });
+        if (!hasValidUploadedSignature(file)) {
+            await removeUploadedFile(file);
             throw new BadRequestException('File content does not match its declared type.');
         }
         const safeKind = /^[a-z0-9_-]+$/i.test(kind || '') ? kind : 'general';
         return {
-            url: `/uploads/courses/${safeKind}/${file.filename}`,
+            url: uploadUrl(file),
             kind: safeKind,
             size: file.size,
             mimetype: file.mimetype,

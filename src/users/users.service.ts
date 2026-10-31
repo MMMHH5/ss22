@@ -4,9 +4,8 @@ import { AuditService } from '../audit/audit.service';
 import { Role, EnrollmentStatus, Prisma } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
-import { unlink } from 'fs';
-import { basename, join } from 'path';
-import { hasValidSignature } from '../common/file-signatures';
+import { hasValidUploadedSignature } from '../common/file-signatures';
+import { removeStoredUpload, removeUploadedFile } from '../common/upload-storage';
 import { PROFILE_KEY, sanitizeInstructorProfile } from '../common/instructor-profile';
 import { UserCacheService } from '../common/user-cache.service';
 import { CreateUserDto, UpdateUserDto, UpdateMeDto } from './dto/user.dto';
@@ -217,8 +216,8 @@ export class UsersService {
      * stays and the user is not left with a broken reference.
      */
     async setAvatar(userId: string, file: Express.Multer.File) {
-        if (!hasValidSignature(file.path, file.mimetype)) {
-            unlink(file.path, () => undefined);
+        if (!hasValidUploadedSignature(file)) {
+            await removeUploadedFile(file);
             throw new BadRequestException('The uploaded file is not a valid image.');
         }
 
@@ -227,7 +226,7 @@ export class UsersService {
             select: { metadata: true },
         });
         if (!user) {
-            unlink(file.path, () => undefined);
+            await removeUploadedFile(file);
             throw new NotFoundException('User not found');
         }
 
@@ -249,19 +248,16 @@ export class UsersService {
                 select: { id: true, metadata: true },
             });
         } catch (err) {
-            // The file is already on disk but now referenced by nothing. multer
-            // only cleans up its own aborts, and this is a write failure after
-            // multer finished -- so without this the upload is an orphan.
-            unlink(file.path, () => undefined);
+            await removeUploadedFile(file);
             throw err;
         }
 
-        if (typeof previous === 'string' && previous.startsWith('/uploads/avatars/')) {
-            // basename() so a crafted stored value cannot escape the folder.
-            const oldName = basename(previous);
-            if (oldName && oldName !== file.filename) {
-                unlink(join(process.cwd(), 'uploads', 'avatars', oldName), () => undefined);
-            }
+        const previousAvatar = typeof previous === 'string'
+            ? /^\/uploads\/avatars\/([A-Za-z0-9][A-Za-z0-9._-]*)$/.exec(previous)
+            : null;
+        const previousAvatarPath = previousAvatar ? `/uploads/avatars/${previousAvatar[1]}` : null;
+        if (previousAvatarPath && previousAvatarPath !== publicPath) {
+            await removeStoredUpload(previousAvatarPath);
         }
 
         return { avatarUrl: publicPath, metadata: updated.metadata };

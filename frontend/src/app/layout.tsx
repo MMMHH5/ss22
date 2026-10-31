@@ -6,6 +6,7 @@ import { AuthProvider } from '@/lib/auth-context';
 import { I18nProvider } from '@/lib/i18n-context';
 import { ThemeProvider } from '@/lib/theme-context';
 import { Toaster } from 'react-hot-toast';
+import { SITE_URL } from '@/lib/deployment-urls';
 import CookieBanner from '@/components/CookieBanner';
 import JsonLd from '@/components/JsonLd';
 import GlobalBackButton from '@/components/GlobalBackButton';
@@ -31,8 +32,6 @@ const manrope = localFont({
   variable: '--font-manrope',
   display: 'swap',
 });
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

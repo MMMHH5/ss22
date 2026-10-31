@@ -1,21 +1,14 @@
 import { Controller, Get, Post, Param, Body, Patch, UseGuards, Request, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { existsSync, mkdirSync, unlink } from 'fs';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '@prisma/client';
 import { ChatService } from './chat.service';
 import { ChatGateway } from './chat.gateway';
-import { hasValidSignature } from '../common/file-signatures';
+import { hasValidUploadedSignature } from '../common/file-signatures';
+import { createUploadStorage, removeUploadedFile, uploadUrl } from '../common/upload-storage';
 
-
-
-const uploadDir = './uploads/chat';
-if (!existsSync(uploadDir)) {
-    mkdirSync(uploadDir, { recursive: true });
-}
 
 const DIRECT_ROLES = [Role.STUDENT, Role.INSTRUCTOR, Role.COURSE_MANAGER, Role.FINANCE, Role.ADMIN];
 
@@ -119,9 +112,9 @@ export class ChatController {
     @Roles(Role.STUDENT, Role.INSTRUCTOR, Role.COURSE_MANAGER, Role.FINANCE, Role.ADMIN)
     @Post('upload')
     @UseInterceptors(FileInterceptor('file', {
-        storage: diskStorage({
-            destination: uploadDir,
-            filename: (req: any, file, cb) => {
+        storage: createUploadStorage({
+            destination: () => './uploads/chat',
+            filename: (_req, file) => {
                 const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
                 // Use fixed extension based on validated MIME type
                 const mimeToExt: Record<string, string> = {
@@ -134,7 +127,7 @@ export class ChatController {
                 const ext = file.mimetype.startsWith('video/')
                     ? (file.mimetype === 'video/webm' ? '.webm' : file.mimetype === 'video/quicktime' ? '.mov' : '.mp4')
                     : (mimeToExt[file.mimetype] || '.bin');
-                cb(null, `chat-${uniqueSuffix}${ext}`);
+                return `chat-${uniqueSuffix}${ext}`;
             },
         }),
         fileFilter: (req, file, cb) => {
@@ -157,16 +150,16 @@ export class ChatController {
             parts: 30,
         },
     }))
-    uploadAttachment(@UploadedFile() file: any) {
+    async uploadAttachment(@UploadedFile() file: Express.Multer.File) {
         if (!file) {
             throw new BadRequestException('File is required.');
         }
-        if (!hasValidSignature(file.path, file.mimetype)) {
-            unlink(file.path, () => { /* best-effort cleanup */ });
+        if (!hasValidUploadedSignature(file)) {
+            await removeUploadedFile(file);
             throw new BadRequestException('File content does not match its declared type.');
         }
         return {
-            url: `/uploads/chat/${file.filename}`,
+            url: uploadUrl(file),
             size: file.size,
             mimetype: file.mimetype,
         };

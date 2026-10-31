@@ -34,17 +34,25 @@ const MAGIC_SIGNATURES: Record<string, SignatureCheck> = {
 };
 
 /**
- * Verifies that the first bytes of a saved file match the MIME type it was
- * uploaded with. Returns true when valid or when no signature is registered,
- * false when the declared type clearly does not match the content.
+ * Verifies that stored bytes match the MIME type claimed by the upload.
+ * Returns true when valid or when no signature is registered, false when the
+ * declared type clearly does not match the content.
  */
-export function hasValidSignature(filePath: string, mimetype: string): boolean {
+export function hasValidSignature(filePath: string | Buffer, mimetype: string): boolean {
     const check = MAGIC_SIGNATURES[mimetype];
     if (!check) return true;
     try {
-        const head = readBytes(filePath, 24);
+        const head = Buffer.isBuffer(filePath) ? filePath : readBytes(filePath, 24);
         return check(head);
     } catch {
         return false;
     }
+}
+
+export function hasValidUploadedSignature(file: {
+    path: string;
+    signature?: Buffer;
+    mimetype: string;
+}): boolean {
+    return hasValidSignature(file.signature ?? file.path, file.mimetype);
 }

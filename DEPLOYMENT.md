@@ -1,17 +1,86 @@
 # Deployment Guide
 
-LaxaLab ships with **two supported production targets**:
+LaxaLab supports three deployment targets:
 
-1. **Railway (primary / managed)** — recommended. No servers to run or patch.
-2. **Self-hosted Docker Compose** (`docker-compose.prod.yml`) — full TLS via
+1. **Render Blueprint** (`render.yaml`) — free evaluation deployment; not for production data.
+2. **Railway (managed)** — no servers to run or patch.
+3. **Self-hosted Docker Compose** (`docker-compose.prod.yml`) — full TLS via
    Let's Encrypt, nginx in front of the Next.js frontend and NestJS backend.
 
 Pick one per environment. The environment variables are the same either way
 (see `.env.production.example`).
 
+## Target 1: Render (free evaluation)
+
+The root [render.yaml](./render.yaml) Blueprint describes six resources:
+
+- `laxalab-web-learner` and `laxalab-web-admin`: separate web origins.
+- `laxalab-api-public` and `laxalab-api-admin`: separate APIs. The public API
+  refuses admin-audience tokens; the admin API accepts only admin sessions.
+- `laxalab-postgres`: one shared PostgreSQL database.
+- `laxalab-redis`: a private shared cache and rate-limit store used by both APIs.
+
+Both APIs use the same Cloudflare R2 bucket for uploads, so avatars, course
+media, chat attachments, assignments, receipts, and CVs remain available across
+the two API origins. Private receipts and CVs are still served only by their
+authenticated download routes; R2 itself is not exposed as a public bucket.
+
+### Before creating the Blueprint
+
+1. Create a Cloudflare R2 bucket and an API token with read/write access to that
+   bucket. Record the S3 endpoint (`https://<account-id>.r2.cloudflarestorage.com`),
+   bucket name, access key ID, and secret access key. Do not commit these values.
+2. Confirm that your Render workspace has no other free PostgreSQL database or
+   Key Value instance; Render limits each workspace to one active free instance
+   of each type.
+3. Push this repository and `render.yaml` to GitHub.
+4. In Render, choose **New → Blueprint**, connect `MMMHH5/mo2`, and select the
+   branch containing this file. Review the services and enter the R2 values
+   when prompted for both API services (use the same bucket and token). Render
+   generates a separate JWT secret for each API.
+5. After the deploy completes, test both frontend URLs and each API's
+   `/health` endpoint. Check the API logs for successful database migrations.
+
+The frontend API URLs and backend CORS origins are linked to Render service
+hostnames in the Blueprint. If you later add custom domains, update
+`NEXT_PUBLIC_SITE_URL` / `NEXT_PUBLIC_API_URL` on each frontend and
+`FRONTEND_URL` on its matching API, then redeploy the frontends (Next.js embeds
+`NEXT_PUBLIC_*` values during build). Configure any Google OAuth callback and
+Stripe webhook URLs to the deployed service URLs as well.
+
+### Free-plan limitations
+
+This Blueprint intentionally selects free plans because it is an evaluation
+setup, not a production recommendation:
+
+- Free web services sleep after 15 minutes without traffic and can take about a
+  minute to wake. They have ephemeral disks; this project uses R2 for uploads
+  so files do not depend on those disks.
+- Render's free PostgreSQL database has a 1 GB limit, no backups, and expires
+  30 days after creation. Upgrade it before expiry to keep the data; after the
+  additional 14-day grace period Render deletes it.
+- The free Redis-compatible Key Value instance is in-memory and can lose its
+  cache/rate-limit data when it restarts. It is not application data, but do
+  not use this plan as a production security boundary.
+- Render free web services cannot send SMTP traffic on ports 465/587. Use an
+  email provider/API or a supported port, or configure email later.
+- Four web services, Redis, and the database share the workspace's free allowances.
+  Review Render's current usage and pricing before leaving this as a live
+  service.
+
+The Blueprint creates an empty database. If you are moving an existing
+deployment, first migrate the database and copy every referenced object from
+the old `uploads/` tree into the R2 bucket using the same `uploads/...` keys.
+Do not direct production traffic to the new APIs until that migration is
+verified.
+
+This repository is prepared for Render deployment, but the Blueprint must be
+connected and launched from your Render account. Never paste Render or R2
+credentials into chat or commit them to the repository.
+
 ---
 
-## Target 1: Railway (recommended)
+## Target 2: Railway
 
 Railway deploys from this GitHub repository. Three services:
 
@@ -89,7 +158,7 @@ counting enrollments with `status NOT IN ('REJECTED','REVOKED')` per opening.
 
 ---
 
-## Target 2: Self-hosted Docker Compose
+## Target 3: Self-hosted Docker Compose
 
 `docker-compose.prod.yml` runs: **Postgres 15**, **NestJS backend**, **Next.js
 frontend**, **nginx** (HTTP→HTTPS, TLS, 100MB uploads), and **certbot** (Let's

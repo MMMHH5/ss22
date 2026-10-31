@@ -86,7 +86,15 @@ describe('ADMIN_SURFACE=1 (admin host)', () => {
 
     test('the handshake stays open without a token', () => {
         process.env.ADMIN_SURFACE = '1';
-        for (const path of ['/auth/login', '/auth/refresh', '/auth/2fa/setup', '/health', '/socket.io/']) {
+        for (const path of [
+            '/auth/login',
+            '/auth/refresh',
+            '/auth/2fa/setup',
+            '/auth/google',
+            '/auth/google/callback',
+            '/health',
+            '/socket.io/',
+        ]) {
             assert.equal(call({ path }).passed, true, `${path} must be reachable anonymously`);
         }
     });

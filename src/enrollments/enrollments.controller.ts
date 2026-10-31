@@ -1,6 +1,5 @@
 import { Controller, Post, Body, Param, Patch, UseGuards, Request, Ip, UseInterceptors, UploadedFile, BadRequestException, Get, Query, Res, Delete } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { EnrollmentsService } from './enrollments.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -10,20 +9,16 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../auth/permissions/permissions';
 import { Role, EnrollmentStatus } from '@prisma/client';
-import { existsSync, mkdirSync, unlink } from 'fs';
 import { basename } from 'path';
 import { Response } from 'express';
-import { hasValidSignature } from '../common/file-signatures';
+import { hasValidUploadedSignature } from '../common/file-signatures';
+import { createUploadStorage, removeUploadedFile, uploadUrl } from '../common/upload-storage';
+import { readPrivateUpload } from '../common/private-uploads';
 import { ReviewEnrollmentDto, ReserveCourseDto, AdminEnrollDto } from './dto/enrollment.dto';
 
 // Receipts are private: stored OUTSIDE the publicly-served uploads tree
 // (uploads/private/...) and only downloadable via GET :id/receipt, which
 // checks that the caller is the owning student, FINANCE, or ADMIN.
-const uploadDir = './uploads/private/receipts';
-if (!existsSync(uploadDir)) {
-    mkdirSync(uploadDir, { recursive: true });
-}
-
 @ApiTags('Enrollments & Receipts')
 @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
@@ -49,9 +44,9 @@ export class EnrollmentsController {
     @Roles(Role.STUDENT)
     @Post()
     @UseInterceptors(FileInterceptor('receipt', {
-        storage: diskStorage({
-            destination: './uploads/private/receipts',
-            filename: (req, file, cb) => {
+        storage: createUploadStorage({
+            destination: () => './uploads/private/receipts',
+            filename: (_req, file) => {
                 const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
                 // Use fixed extension based on validated MIME type
                 const mimeToExt: Record<string, string> = {
@@ -60,8 +55,8 @@ export class EnrollmentsController {
                     'application/pdf': '.pdf',
                 };
                 const ext = mimeToExt[file.mimetype] || '.pdf';
-                cb(null, `receipt-${uniqueSuffix}${ext}`);
-            }
+                return `receipt-${uniqueSuffix}${ext}`;
+            },
         }),
         fileFilter: (req, file, cb) => {
             if (file.mimetype === 'image/jpeg' || file.mimetype === 'image/png' || file.mimetype === 'application/pdf') {
@@ -78,36 +73,41 @@ export class EnrollmentsController {
             parts: 30,
         }
     }))
-    enrollWithReceipt(
+    async enrollWithReceipt(
         @Body('openingId') openingId: string,
         @Body('gatewayId') gatewayId: string | undefined,
         @Body('couponCode') couponCode: string | undefined,
-        @UploadedFile() file: any,
+        @UploadedFile() file: Express.Multer.File,
         @Request() req: any,
         @Ip() ip: string
     ) {
         if (!file) {
             throw new BadRequestException('Receipt file is required.');
         }
-        if (!hasValidSignature(file.path, file.mimetype)) {
-            unlink(file.path, () => { /* best-effort cleanup */ });
+        if (!hasValidUploadedSignature(file)) {
+            await removeUploadedFile(file);
             throw new BadRequestException('Receipt content does not match its declared type.');
         }
         if (!openingId) {
+            await removeUploadedFile(file);
             throw new BadRequestException('openingId is required.');
         }
-        const receiptUrl = `/uploads/private/receipts/${file.filename}`;
-        return this.enrollmentsService.enrollWithReceipt(
-            openingId,
-            receiptUrl,
-            req.user.id || req.user.userId,
-            ip,
-            // Which payment method the student says they used, so finance can
-            // reconcile the transfer. Optional: older clients omit it.
-            gatewayId || undefined,
-            // Optional student-typed coupon code, priced server-side.
-            couponCode || undefined,
-        );
+        try {
+            return await this.enrollmentsService.enrollWithReceipt(
+                openingId,
+                uploadUrl(file),
+                req.user.id || req.user.userId,
+                ip,
+                // Which payment method the student says they used, so finance can
+                // reconcile the transfer. Optional: older clients omit it.
+                gatewayId || undefined,
+                // Optional student-typed coupon code, priced server-side.
+                couponCode || undefined,
+            );
+        } catch (error) {
+            await removeUploadedFile(file);
+            throw error;
+        }
     }
 
     @ApiOperation({ summary: 'Reserve a seat without payment' })
@@ -209,9 +209,11 @@ export class EnrollmentsController {
         @Res() res: Response,
     ) {
         const abs = await this.enrollmentsService.getReceiptPath(enrollmentId, req.user.userId, req.user.role);
+        const content = await readPrivateUpload(abs);
         res.setHeader('X-Content-Type-Options', 'nosniff');
         res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
         res.setHeader('Content-Disposition', `inline; filename="${basename(abs).replace(/["\\\r\n]/g, '')}"`);
-        return res.sendFile(abs);
+        res.type(basename(abs));
+        return res.send(content);
     }
 }

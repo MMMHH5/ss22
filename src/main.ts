@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
+import { Readable } from 'stream';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -11,6 +12,7 @@ import { corsOrigins } from './common/cors-origins';
 import { surfaceGate } from './common/surface-gate';
 import { AllExceptionsFilter } from './common/all-exceptions.filter';
 import { bodyParserErrorHandler } from './common/body-parser-error.middleware';
+import { getStoredObject, isMissingStoredObject, isObjectStorageEnabled } from './common/upload-storage';
 
 function validateEnvVars() {
     const requiredVars = ['DATABASE_URL', 'JWT_SECRET'];
@@ -33,7 +35,7 @@ function validateEnvVars() {
     if (isPlaceholder) {
         console.error('\nCRITICAL ERROR: DATABASE_URL does not point to a real database server.');
         console.error(`Resolved host: '${dbHost || '(unparseable)'}'.`);
-        console.error('On Railway: open the backend service > Variables, make sure DATABASE_URL is a REFERENCE to the Postgres service (value like ${{Postgres.DATABASE_URL}}), then redeploy.\n');
+        console.error('On Railway or Render: set DATABASE_URL to the managed Postgres connection string, then redeploy.\n');
         process.exit(1);
     }
 
@@ -45,13 +47,19 @@ function validateEnvVars() {
         console.error('Generate a strong secret: node -e "console.log(require(\'crypto\').randomBytes(48).toString(\'hex\'))"\n');
         process.exit(1);
     }
+
+    if (process.env.REQUIRE_OBJECT_STORAGE === '1' && !isObjectStorageEnabled()) {
+        console.error('\nCRITICAL ERROR: R2 object storage is required but is not configured.');
+        console.error('Set R2_ENDPOINT, R2_BUCKET, R2_ACCESS_KEY_ID, and R2_SECRET_ACCESS_KEY.\n');
+        process.exit(1);
+    }
 }
 
 async function bootstrap() {
     validateEnvVars();
     const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-    // Railway terminates TLS and forwards every request from its own edge, so
+    // The hosting edge terminates TLS and forwards every request, so
     // without this `req.ip` is the proxy's address and every visitor on earth
     // shares one identity. Two things depend on that value:
     //
@@ -59,7 +67,7 @@ async function bootstrap() {
     //     to the edge as a whole instead of to each caller.
     //   - Express logs it as the client, which made every access log useless.
     //
-    // `1` trusts exactly one hop (Railway) and takes the next entry in
+    // `1` trusts exactly one hop and takes the next entry in
     // X-Forwarded-For as the client. It is NOT `true`: that would let a client
     // send its own X-Forwarded-For and spoof its identity, which here would let
     // anyone bypass the rate limit and forge the audit trail.
@@ -87,7 +95,58 @@ async function bootstrap() {
         next();
     });
 
-    // Serve static files from the uploads directory.
+    if (isObjectStorageEnabled()) {
+        app.use('/uploads', async (req: Request, res: Response, next: NextFunction) => {
+            if (req.method !== 'GET') {
+                next();
+                return;
+            }
+
+            const relativePath = (req.path || '').replace(/^\/+/, '');
+            if (!relativePath || relativePath.split('/').some((part) => !part || part === '.' || part === '..')) {
+                res.status(404).send({ statusCode: 404, message: 'Not Found' });
+                return;
+            }
+
+            try {
+                const file = await getStoredObject(`uploads/${relativePath}`);
+                res.setHeader('X-Content-Type-Options', 'nosniff');
+                res.setHeader('Cache-Control', 'private, no-store');
+                res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+                res.setHeader('Content-Type', file.contentType || 'application/octet-stream');
+                if (file.contentLength !== undefined) res.setHeader('Content-Length', file.contentLength);
+
+                const inline = /\.(jpe?g|png|webp|gif|mp4|webm|mov)$/i.test(relativePath);
+                if (!inline) {
+                    const name = (relativePath.split('/').pop() || 'file').replace(/["\\\r\n]/g, '');
+                    res.setHeader('Content-Disposition', `attachment; filename="${name}"`);
+                }
+
+                if (file.body instanceof Readable) {
+                    file.body.once('error', (error) => {
+                        console.error('Unable to stream an uploaded object from storage.', error);
+                        if (!res.headersSent) {
+                            res.status(502).send({ statusCode: 502, message: 'Uploaded file storage is unavailable' });
+                        } else {
+                            res.destroy();
+                        }
+                    });
+                    file.body.pipe(res);
+                } else {
+                    res.send(Buffer.from(await file.body.transformToByteArray()));
+                }
+            } catch (error) {
+                if (isMissingStoredObject(error)) {
+                    res.status(404).send({ statusCode: 404, message: 'Not Found' });
+                    return;
+                }
+                console.error('Unable to serve an uploaded object from storage.', error);
+                res.status(502).send({ statusCode: 502, message: 'Uploaded file storage is unavailable' });
+            }
+        });
+    }
+
+    // Serve local development uploads; the R2 proxy above handles remote files.
     // NOTE: receipts & CVs are blocked above and stored under uploads/private/*;
     // course media and chat attachments remain publicly embeddable.
     app.useStaticAssets(join(process.cwd(), 'uploads'), {
