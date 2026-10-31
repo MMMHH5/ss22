@@ -29,6 +29,7 @@ const AUTH_OPEN = [
     '/auth/login',
     '/auth/refresh',
     '/auth/2fa/',
+    '/auth/change-password',
     '/auth/forgot-password',
     '/auth/reset-password',
     '/auth/google',

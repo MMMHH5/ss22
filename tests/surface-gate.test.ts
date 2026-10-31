@@ -91,6 +91,7 @@ describe('ADMIN_SURFACE=1 (admin host)', () => {
             '/auth/login',
             '/auth/refresh',
             '/auth/2fa/setup',
+            '/auth/change-password',
             '/auth/google',
             '/auth/google/callback',
             '/health',
