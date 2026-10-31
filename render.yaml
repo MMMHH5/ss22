@@ -67,7 +67,9 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: FRONTEND_URL
-        value: https://laxalab-web-admin.onrender.com
+        value: https://m.o2.h.laxalab.com
+      - key: CORS_ORIGINS
+        value: https://m.o2.h.laxalab.com
       - key: R2_ENDPOINT
         sync: false
       - key: R2_BUCKET
@@ -115,7 +117,7 @@ services:
       - key: NEXT_PUBLIC_API_URL
         value: https://laxalab-api-admin.onrender.com
       - key: NEXT_PUBLIC_SITE_URL
-        value: https://laxalab-web-admin.onrender.com
+        value: https://m.o2.h.laxalab.com
 
   - type: keyvalue
     name: laxalab-redis
