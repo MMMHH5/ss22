@@ -367,8 +367,10 @@ describe('PHASE 6: role + permission guards deny privilege escalation', () => {
 describe('PHASE 7: CORS is an allow-list, not a single trusted origin', () => {
     const previousFrontend = process.env.FRONTEND_URL;
     const previousCors = process.env.CORS_ORIGINS;
+    const previousAdminSurface = process.env.ADMIN_SURFACE;
 
-    test('FRONTEND_URL remains an implicit member', () => {
+    test('learner API allows its Render frontend and custom learner domains', () => {
+        delete process.env.ADMIN_SURFACE;
         process.env.FRONTEND_URL = 'https://app.example.com';
         delete process.env.CORS_ORIGINS;
         assert.deepEqual(corsOrigins(), [
@@ -378,7 +380,15 @@ describe('PHASE 7: CORS is an allow-list, not a single trusted origin', () => {
         ]);
     });
 
+    test('admin API only allows its configured frontend by default', () => {
+        process.env.ADMIN_SURFACE = '1';
+        process.env.FRONTEND_URL = 'https://admin.example.com';
+        delete process.env.CORS_ORIGINS;
+        assert.deepEqual(corsOrigins(), ['https://admin.example.com']);
+    });
+
     test('CORS_ORIGINS adds origins and deduplicates', () => {
+        delete process.env.ADMIN_SURFACE;
         process.env.FRONTEND_URL = 'https://app.example.com';
         process.env.CORS_ORIGINS =
             'https://admin.example.com, https://app.example.com, https://pay.example.com, https://laxalab.com';
@@ -392,6 +402,7 @@ describe('PHASE 7: CORS is an allow-list, not a single trusted origin', () => {
     });
 
     test('an origin outside the list is never accepted', () => {
+        delete process.env.ADMIN_SURFACE;
         process.env.FRONTEND_URL = 'https://learner.example.com';
         process.env.CORS_ORIGINS = 'https://learner.example.com';
         const list = corsOrigins();
@@ -404,6 +415,8 @@ describe('PHASE 7: CORS is an allow-list, not a single trusted origin', () => {
         else process.env.FRONTEND_URL = previousFrontend;
         if (previousCors === undefined) delete process.env.CORS_ORIGINS;
         else process.env.CORS_ORIGINS = previousCors;
+        if (previousAdminSurface === undefined) delete process.env.ADMIN_SURFACE;
+        else process.env.ADMIN_SURFACE = previousAdminSurface;
         assert.ok(true);
     });
 });

@@ -11,10 +11,12 @@ import { getFrontendUrl } from './frontend-url';
  */
 export function corsOrigins(): string[] {
     const base = getFrontendUrl();
-    const customDomains = ['https://laxalab.com', 'https://www.laxalab.com'];
+    const learnerDomains = process.env.ADMIN_SURFACE === '1'
+        ? []
+        : ['https://laxalab.com', 'https://www.laxalab.com'];
     const explicit = (process.env.CORS_ORIGINS || '')
         .split(',')
         .map((s) => s.trim())
         .filter((s) => s.length > 0);
-    return [...new Set([base, ...customDomains, ...explicit])];
+    return [...new Set([base, ...learnerDomains, ...explicit])];
 }
