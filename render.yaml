@@ -5,7 +5,7 @@ services:
     plan: free
     region: frankfurt
     buildCommand: npm ci --include=dev && npx prisma generate && npm run build
-    startCommand: npx prisma migrate deploy && node dist/main.js
+    startCommand: npx prisma migrate deploy && node dist/src/main.js
     healthCheckPath: /health
     autoDeploy: true
     envVars:
@@ -46,7 +46,7 @@ services:
     plan: free
     region: frankfurt
     buildCommand: npm ci --include=dev && npx prisma generate && npm run build
-    startCommand: npx prisma migrate deploy && node dist/main.js
+    startCommand: npx prisma migrate deploy && node dist/src/main.js
     healthCheckPath: /health
     autoDeploy: true
     envVars:
