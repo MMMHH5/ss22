@@ -383,7 +383,7 @@ describe('PHASE 7: CORS is an allow-list, not a single trusted origin', () => {
     test('admin API only allows its configured frontend by default', () => {
         process.env.ADMIN_SURFACE = '1';
         process.env.FRONTEND_URL = 'https://admin.example.com';
-        delete process.env.CORS_ORIGINS;
+        process.env.CORS_ORIGINS = 'https://laxalab.com,https://www.laxalab.com';
         assert.deepEqual(corsOrigins(), ['https://admin.example.com']);
     });
 
