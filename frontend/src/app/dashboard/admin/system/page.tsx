@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useFetchData } from '@/lib/useFetchData';
+import { API_BASE_URL } from '@/lib/deployment-urls';
 import { useI18n } from '@/lib/i18n-context';
 import { useTheme } from '@/lib/theme-context';
 import toast from 'react-hot-toast';
@@ -26,7 +27,7 @@ export default function AdminSystemPage() {
     const dbUp = health?.info?.database?.status === 'up';
     const memUp = health?.info?.memory_heap?.status === 'up';
     const healthy = health?.status === 'ok';
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const apiUrl = API_BASE_URL;
     const env = process.env.NODE_ENV || 'development';
 
     const [platformCurrency, setPlatformCurrency] = useState('USD');

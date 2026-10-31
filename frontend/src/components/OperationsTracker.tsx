@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef } from 'react';
 import { api } from '@/lib/api';
+import { API_BASE_URL } from '@/lib/deployment-urls';
 
 /**
  * Reports page views and named UI actions to the operations center.
@@ -36,7 +37,7 @@ export default function OperationsTracker() {
                 // sendBeacon posts text/plain, which the backend's json parser
                 // still accepts because it parses by content regardless of the
                 // declared type; the beacon path is the unload-safe one.
-                const ok = navigator.sendBeacon(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/operations/track`, new Blob([body], { type: 'application/json' }));
+                const ok = navigator.sendBeacon(`${API_BASE_URL}/operations/track`, new Blob([body], { type: 'application/json' }));
                 if (ok) return;
             }
         } catch {

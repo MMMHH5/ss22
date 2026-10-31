@@ -41,8 +41,10 @@ authenticated download routes; R2 itself is not exposed as a public bucket.
 5. After the deploy completes, test both frontend URLs and each API's
    `/health` endpoint. Check the API logs for successful database migrations.
 
-The frontend API URLs and backend CORS origins are linked to Render service
-hostnames in the Blueprint. If you later add custom domains, update
+The Blueprint uses absolute public `onrender.com` URLs for frontend API
+requests, site metadata, and backend CORS origins. Do not replace these with
+Render's short internal service hostnames in browser-facing variables. If you
+later add custom domains, update
 `NEXT_PUBLIC_SITE_URL` / `NEXT_PUBLIC_API_URL` on each frontend and
 `FRONTEND_URL` on its matching API, then redeploy the frontends (Next.js embeds
 `NEXT_PUBLIC_*` values during build). Configure any Google OAuth callback and

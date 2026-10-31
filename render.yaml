@@ -27,10 +27,7 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: FRONTEND_URL
-        fromService:
-          type: web
-          name: laxalab-web-learner
-          property: host
+        value: https://laxalab-web-learner.onrender.com
       - key: R2_ENDPOINT
         sync: false
       - key: R2_BUCKET
@@ -68,10 +65,7 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: FRONTEND_URL
-        fromService:
-          type: web
-          name: laxalab-web-admin
-          property: host
+        value: https://laxalab-web-admin.onrender.com
       - key: R2_ENDPOINT
         sync: false
       - key: R2_BUCKET
@@ -97,15 +91,9 @@ services:
       - key: NEXT_PUBLIC_APP_MODE
         value: learner
       - key: NEXT_PUBLIC_API_URL
-        fromService:
-          type: web
-          name: laxalab-api-public
-          property: host
+        value: https://laxalab-api-public.onrender.com
       - key: NEXT_PUBLIC_SITE_URL
-        fromService:
-          type: web
-          name: laxalab-web-learner
-          property: host
+        value: https://laxalab-web-learner.onrender.com
 
   - type: web
     name: laxalab-web-admin
@@ -123,15 +111,9 @@ services:
       - key: NEXT_PUBLIC_APP_MODE
         value: admin
       - key: NEXT_PUBLIC_API_URL
-        fromService:
-          type: web
-          name: laxalab-api-admin
-          property: host
+        value: https://laxalab-api-admin.onrender.com
       - key: NEXT_PUBLIC_SITE_URL
-        fromService:
-          type: web
-          name: laxalab-web-admin
-          property: host
+        value: https://laxalab-web-admin.onrender.com
 
   - type: keyvalue
     name: laxalab-redis
