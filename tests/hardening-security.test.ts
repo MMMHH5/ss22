@@ -55,9 +55,11 @@ function makeAuthService(over: {
         },
         refreshToken: {
             create: async () => ({}),
+            update: async () => ({}),
             updateMany: async () => ({}),
             findUnique: async () => null,
         },
+        $transaction: async (operations: Promise<unknown>[]) => Promise.all(operations),
     };
     const svc = new AuthService(
         prisma as never,
@@ -90,21 +92,18 @@ function fullUser(over: Record<string, unknown> = {}) {
     };
 }
 
-describe('PHASE 5: privileged roles (ADMIN/FINANCE) are forced to enable 2FA', () => {
-    test('login for an ADMIN without 2FA returns a setup challenge, not tokens', async () => {
+describe('PHASE 5: privileged roles can manage optional 2FA', () => {
+    test('ADMIN and FINANCE can sign in without 2FA when it is disabled', async () => {
         const pwHash = await bcrypt.hash('pw', 4);
-        const { svc } = makeAuthService({ user: fullUser({ passwordHash: pwHash }) });
-        const out: any = await svc.login({ email: 'admin@test.test', password: 'pw' } as any);
-        assert.equal(out.requiresTwoFactorSetup, true);
-        assert.equal(typeof out.tempToken, 'string');
-        assert.equal('access_token' in out, false, 'must not mint tokens while 2FA is off');
-    });
-
-    test('login for a FINANCE account without 2FA is gated the same way', async () => {
-        const pwHash = await bcrypt.hash('pw', 4);
-        const { svc } = makeAuthService({ user: fullUser({ role: Role.FINANCE, passwordHash: pwHash }) });
-        const out: any = await svc.login({ email: 'admin@test.test', password: 'pw' } as any);
-        assert.equal(out.requiresTwoFactorSetup, true);
+        for (const role of [Role.ADMIN, Role.FINANCE]) {
+            const { svc } = makeAuthService({
+                user: fullUser({ role, passwordHash: pwHash, twoFactorEnabled: false }),
+            });
+            const out: any = await svc.login({ email: 'admin@test.test', password: 'pw' } as any);
+            assert.equal(out.requiresTwoFactor, false);
+            assert.equal(out.requiresTwoFactorSetup, undefined);
+            assert.equal(out.access_token, 'tok');
+        }
     });
 
     test('an ADMIN that already has 2FA goes through the normal 2FA challenge', async () => {
@@ -117,18 +116,8 @@ describe('PHASE 5: privileged roles (ADMIN/FINANCE) are forced to enable 2FA', (
         assert.equal(out.requiresTwoFactorSetup, undefined);
     });
 
-    test('a STUDENT without 2FA still gets tokens (enforcement is admin-only)', async () => {
-        const pwHash = await bcrypt.hash('pw', 4);
-        const { svc } = makeAuthService({
-            user: fullUser({ role: Role.STUDENT, passwordHash: pwHash }),
-        });
-        const out: any = await svc.login({ email: 'admin@test.test', password: 'pw' } as any);
-        assert.equal(out.requiresTwoFactor, false);
-        assert.equal(out.access_token, 'tok');
-    });
-
-    test('refresh refuses a privileged account that never enabled 2FA', async () => {
-        const { svc } = makeAuthService({ user: fullUser() });
+    test('refresh remains available to privileged accounts with 2FA disabled', async () => {
+        const { svc } = makeAuthService({ user: fullUser({ twoFactorEnabled: false }) });
         (svc as any).prisma.refreshToken.findUnique = async () => ({
             id: 'r1',
             tokenHash: 'h',
@@ -137,23 +126,39 @@ describe('PHASE 5: privileged roles (ADMIN/FINANCE) are forced to enable 2FA', (
             revokedAt: null,
             expiresAt: new Date(Date.now() + 60_000),
         });
-        await assert.rejects(
-            () => svc.refresh('raw-token'),
-            (err: unknown) =>
-                err instanceof UnauthorizedException && /two-factor/i.test(err.message),
-        );
+        const out: any = await svc.refresh('raw-token');
+        assert.equal(out.access_token, 'tok');
+        assert.equal(typeof out.refresh_token, 'string');
     });
 
-    test('disable2FA is refused for ADMIN even with the right password', async () => {
+    test('ADMIN and FINANCE can disable 2FA after verifying password and authenticator code', async () => {
         const pwHash = await bcrypt.hash('pw', 4);
-        const { svc } = makeAuthService({
-            user: fullUser({ passwordHash: pwHash, twoFactorEnabled: true }),
-        });
-        await assert.rejects(
-            () => svc.disable2FA('u1', 'pw', '000000'),
-            (err: unknown) =>
-                err instanceof ForbiddenException && /cannot disable/i.test(err.message),
-        );
+        for (const role of [Role.ADMIN, Role.FINANCE]) {
+            const secret = generateSecret();
+            const { svc, getStored } = makeAuthService({
+                user: fullUser({
+                    role,
+                    passwordHash: pwHash,
+                    twoFactorEnabled: true,
+                    twoFactorSecret: secret,
+                }),
+            });
+            await svc.disable2FA('u1', 'pw', generateSync({ secret }));
+            assert.equal(getStored().twoFactorEnabled, false);
+            assert.equal(getStored().twoFactorSecret, null);
+        }
+    });
+
+    test('ADMIN and FINANCE can use Google sign-in with 2FA disabled', async () => {
+        for (const role of [Role.ADMIN, Role.FINANCE]) {
+            const { svc } = makeAuthService({
+                user: fullUser({ role, twoFactorEnabled: false }),
+            });
+            const out: any = await svc.googleLogin({ user: { email: 'admin@test.test' } });
+            assert.equal(out.requiresTwoFactor, false);
+            assert.equal(out.requiresTwoFactorSetup, undefined);
+            assert.equal(out.access_token, 'tok');
+        }
     });
 });
 

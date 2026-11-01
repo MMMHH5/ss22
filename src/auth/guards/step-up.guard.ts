@@ -12,9 +12,9 @@ import { verifyTotp } from '../../common/totp';
  * secret.
  *
  * Rules:
- *  - The actor must have 2FA enabled with a stored secret. Privileged accounts
- *    cannot disable it (AuthService.disable2FA refuses), so this gate cannot
- *    strand a legitimate admin.
+ *  - The actor must have 2FA enabled with a stored secret. Disabling 2FA does
+ *    not bypass this gate; privileged actions remain unavailable until it is
+ *    enabled again.
  *  - The code is read from `x-step-up-code` (header) or `stepupCode` (body).
  *  - Every failure is a 403 with `stepUpRequired: true` so the frontend API
  *    layer can prompt for a code and transparently retry the identical request.

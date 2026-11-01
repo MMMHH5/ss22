@@ -58,20 +58,10 @@ export class AuthService {
     }
 
     /**
-     * Roles that sit on the privileged side of the learner/admin boundary.
-     * Their sign-in is required to be protected by 2FA (Phase 5): a login or
-     * refresh that would hand one of them a live session without it is refused.
-     */
-    private isPrivilegedRole(role: string): boolean {
-        return role === Role.ADMIN || role === Role.FINANCE;
-    }
-
-    /**
      * Resolve who is configuring 2FA. Either an authenticated session supplies
-     * `userId`, or the caller proves one-time knowledge of a `2fa_setup`
-     * challenge minted by login/googleLogin for a privileged account that has
-     * no session yet. A challenge for any other purpose (2fa/pwd_change/ops) is
-     * rejected so a token cannot be re-purposed across flows.
+     * `userId`, or the caller proves one-time knowledge of a legacy
+     * `2fa_setup` challenge. A challenge for any other purpose
+     * (2fa/pwd_change/ops) is rejected so a token cannot be re-purposed.
      */
     private resolveSetupIdentity(userId: string | undefined, tempToken?: string): { userId: string; fromChallenge: boolean } {
         if (tempToken) {
@@ -155,19 +145,6 @@ export class AuthService {
                 { expiresIn: '5m' }
             );
             return { requiresTwoFactor: true, tempToken };
-        }
-
-        // Admin and finance accounts are on the far side of the privileged
-        // boundary and must secure sign-in with 2FA. Refuse to mint full tokens
-        // for one of them without it, and hand back a short-lived setup
-        // challenge instead -- the 2FA setup endpoints accept it in place of a
-        // session, because a user who never completed the enforcement has none.
-        if (this.isPrivilegedRole(user.role) && !user.twoFactorEnabled) {
-            const tempToken = this.jwtService.sign(
-                { sub: user.id, email: user.email, role: user.role, purpose: '2fa_setup' },
-                { expiresIn: '10m' }
-            );
-            return { requiresTwoFactorSetup: true, tempToken };
         }
 
         const tokens = await this.issueTokens(user.id, user.email, user.role, user.tokenVersion);
@@ -295,14 +272,6 @@ export class AuthService {
 
         const user = await this.prisma.user.findUnique({ where: { id: token.userId } });
         if (!user || !user.isActive) throw new UnauthorizedException('Account not available');
-
-        // Same gate as login: a privileged account without 2FA enabled must not
-        // keep working through a refresh token issued before the enforcement.
-        // This closes the window for accounts that predate it and pushes them
-        // through the setup challenge on their next real login.
-        if (this.isPrivilegedRole(user.role) && !user.twoFactorEnabled) {
-            throw new UnauthorizedException('Two-factor authentication is required for this account');
-        }
 
         // Rotate the refresh token, keeping the family lineage intact.
         const newRefresh = this.generateToken();
@@ -459,13 +428,6 @@ export class AuthService {
         const user = await this.prisma.user.findUnique({ where: { id: userId } });
         if (!user) throw new UnauthorizedException('User not found');
 
-        // Admin and finance sign-in is not optional, so none of them may turn it
-        // off once it is on. This is checked before the password so the refusal
-        // is not gated on anything the caller could change.
-        if (this.isPrivilegedRole(user.role)) {
-            throw new ForbiddenException('Administrative and finance accounts cannot disable two-factor authentication');
-        }
-
         const pwMatches = await bcrypt.compare(password, user.passwordHash);
         if (!pwMatches) throw new BadRequestException('Password is incorrect');
 
@@ -497,18 +459,6 @@ export class AuthService {
         }
 
         if (!user.isActive) throw new ForbiddenException('Account is suspended');
-
-        // Privileged roles are held to the same 2FA bar through Google: without
-        // an enrollment, no access token or refresh token is issued. The oauth
-        // callback redirects the browser to the setup challenge (see
-        // AuthController.googleAuthRedirect / the frontend success page).
-        if (this.isPrivilegedRole(user.role) && !user.twoFactorEnabled) {
-            const tempToken = this.jwtService.sign(
-                { sub: user.id, email: user.email, role: user.role, purpose: '2fa_setup' },
-                { expiresIn: '10m' }
-            );
-            return { requiresTwoFactorSetup: true, tempToken };
-        }
 
         if (user.twoFactorEnabled) {
             const tempToken = this.jwtService.sign(

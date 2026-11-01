@@ -16,12 +16,14 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import SelectField from '@/components/SelectField';
+import TwoFactorSettings from './TwoFactorSettings';
 
 interface MyProfile {
     id: string;
     email: string;
     role: string;
     isActive: boolean;
+    twoFactorEnabled: boolean;
     metadata?: Record<string, unknown> | null;
     createdAt: string;
     stats?: {
@@ -784,6 +786,13 @@ function ProfileContent() {
 
                         {activeTab === 'security' && (
                             <div className="space-y-6">
+                                {profile && (
+                                    <TwoFactorSettings
+                                        enabled={profile.twoFactorEnabled}
+                                        sensitiveActionsRequireTwoFactor={profile.role === 'ADMIN' || profile.role === 'FINANCE'}
+                                        onChanged={refetch}
+                                    />
+                                )}
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                     {/* Email change */}
                                     <div className="bg-white dark:bg-brand-navy-dark border border-gray-200 dark:border-gray-200 dark:border-white/5 rounded-3xl shadow-sm p-6 lg:p-7">
