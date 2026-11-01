@@ -3,9 +3,8 @@
 import { useMemo } from 'react';
 import { useFetchData } from '@/lib/useFetchData';
 import { useI18n } from '@/lib/i18n-context';
-import { useAuth } from '@/lib/auth-context';
 import {
-    Award, BookOpen, Flame, Loader, MessageCircle, Star, Target, Trophy, Zap,
+    Award, BookOpen, Flame, MessageCircle, Star, Target, Trophy, Zap,
 } from 'lucide-react';
 
 interface BadgeData {
@@ -20,15 +19,6 @@ interface PointsData {
     streak?: number;
     xpToNextLevel?: number;
     badges?: BadgeData[];
-}
-
-interface LeaderRow {
-    userId?: string;
-    user?: { id?: string; email?: string } | null;
-    email?: string;
-    points?: number;
-    level?: number;
-    streak?: number;
 }
 
 interface Props {
@@ -55,10 +45,8 @@ const BADGE_CATALOG: Record<string, { icon: LucideIcon; ar: string; en: string }
 export default function GamificationPanel({ userId }: Props) {
     const { locale, pick } = useI18n();
     const isAr = locale === 'ar';
-    const { user } = useAuth();
 
     const meRes = useFetchData<PointsData>(userId ? `/gamification/user/${userId}` : '/gamification/me');
-    const boardRes = useFetchData<LeaderRow[]>('/gamification/leaderboard');
 
     const points = Number(meRes.data?.points ?? 0);
     const level = Math.max(1, Number(meRes.data?.level ?? 1));
@@ -83,11 +71,6 @@ export default function GamificationPanel({ userId }: Props) {
         return [...catalog, ...extra];
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [meRes.data]);
-
-    const leaders = (boardRes.data || []).slice(0, 10);
-    const myId = userId || user?.userId;
-    const rowId = (r: LeaderRow) => r.userId || r.user?.id;
-    const rowName = (r: LeaderRow) => r.user?.email || r.email || (isAr ? 'مستخدم' : 'User');
 
     if (meRes.loading) {
         return (
@@ -158,9 +141,7 @@ export default function GamificationPanel({ userId }: Props) {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">
-                {/* Badges */}
-                <div className="lg:col-span-3 bg-brand-navy-dark border border-white/5 rounded-2xl p-6">
+            <section aria-label={isAr ? 'مجموعة الشارات' : 'Badge collection'} className="bg-brand-navy-dark border border-white/5 rounded-2xl p-6">
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="flex items-center gap-2 text-sm font-black text-white">
                             <Award size={16} className="text-brand-gold-light" />
@@ -191,63 +172,7 @@ export default function GamificationPanel({ userId }: Props) {
                             );
                         })}
                     </div>
-                </div>
-
-                {/* Leaderboard */}
-                <div className="lg:col-span-2 bg-brand-navy-dark border border-white/5 rounded-2xl p-6">
-                    <h3 className="flex items-center gap-2 text-sm font-black text-white mb-4">
-                        <Trophy size={16} className="text-brand-gold-light" />
-                        {isAr ? 'لوحة المتصدرين' : 'Leaderboard'}
-                        <span className="text-[10px] font-bold text-gray-500">({isAr ? 'أفضل ١٠' : 'Top 10'})</span>
-                    </h3>
-                    {boardRes.loading ? (
-                        <div className="flex items-center justify-center py-8">
-                            <Loader size={20} className="animate-spin text-brand-gold-light" />
-                        </div>
-                    ) : leaders.length === 0 ? (
-                        <p className="text-gray-500 font-bold text-xs text-center py-8">{isAr ? 'لا توجد بيانات بعد' : 'No data yet'}</p>
-                    ) : (
-                        <table className="w-full text-sm">
-                            <tbody className="divide-y divide-white/5">
-                                {leaders.map((r, i) => {
-                                    const mine = !!myId && rowId(r) === myId;
-                                    const rankColor =
-                                        i === 0 ? 'bg-brand-gold-light text-brand-navy-dark'
-                                        : i === 1 ? 'bg-gray-300 text-brand-navy-dark'
-                                        : i === 2 ? 'bg-brand-gold-dark text-white'
-                                        : 'bg-white/5 text-gray-400';
-                                    return (
-                                        <tr key={rowId(r) || i} className={mine ? 'bg-brand-gold/5' : ''}>
-                                            <td className="py-2.5 pe-2 w-9">
-                                                <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black ${rankColor}`}>
-                                                    {i + 1}
-                                                </span>
-                                            </td>
-                                            <td className="py-2.5 pe-2 min-w-0">
-                                                <span className={`block truncate text-xs font-bold ${mine ? 'text-brand-gold-light' : 'text-gray-300'}`} title={rowName(r)}>
-                                                    {mine ? `${isAr ? 'أنت' : 'You'} · ${rowName(r)}` : rowName(r)}
-                                                </span>
-                                            </td>
-                                            <td className="py-2.5 text-end whitespace-nowrap">
-                                                <span className="inline-flex items-center gap-1 text-xs font-black text-brand-gold-light tabular-nums">
-                                                    <Star size={11} className="fill-brand-gold-light" /> {Number(r.points ?? 0)}
-                                                </span>
-                                                {typeof r.level === 'number' && (
-                                                    <span className="ms-2 text-[10px] text-gray-500 font-bold">L{r.level}</span>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    )}
-                </div>
-            </div>
-
-            {boardRes.error && (
-                <p className="text-[11px] font-bold text-red-400/80">{boardRes.error}</p>
-            )}
+            </section>
         </div>
     );
 }

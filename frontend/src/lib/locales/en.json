@@ -1978,11 +1978,7 @@
         "keep_learning": "Keep learning every day!",
         "start_streak": "Start your streak today",
         "badges": "Badge collection",
-        "not_earned": "Not earned yet",
-        "leaderboard": "Leaderboard",
-        "top_10": "Top 10",
-        "no_data": "No data yet",
-        "you": "You"
+        "not_earned": "Not earned yet"
     },
     "analytics": {
         "heading": "Learning Analytics",
