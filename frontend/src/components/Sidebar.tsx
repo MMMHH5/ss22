@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useI18n } from '@/lib/i18n-context';
 import { useTheme } from '@/lib/theme-context';
 import { api } from '@/lib/api';
-import { buildNavLinks } from '@/lib/nav-links';
+import { buildNavLinks, groupStudentNavLinks } from '@/lib/nav-links';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import ThemeToggle from '@/components/ThemeToggle';
 import { LogOut } from 'lucide-react';
@@ -50,10 +50,11 @@ export default function Sidebar() {
     const links = roleLinks.length > 0
         ? roleLinks
         : allNav.filter(link => ['/dashboard', '/dashboard/profile', '/dashboard/support'].includes(link.href));
+    const sections = roleKey === 'STUDENT' ? groupStudentNavLinks(links, t) : [{ title: '', links }];
 
     return (
-        <aside className={`w-64 shrink-0 h-screen flex flex-col justify-between hidden lg:flex sticky top-0 ${dark ? 'bg-gradient-to-b from-brand-navy via-[#0e2a52] to-[#0a1e3c]' : 'bg-surface-raised border-r border-line shadow-sm'}`}>
-            <div>
+        <aside className={`sticky top-0 hidden h-screen w-64 shrink-0 flex-col justify-between lg:flex ${dark ? 'bg-gradient-to-b from-brand-navy via-[#0e2a52] to-[#0a1e3c]' : 'border-r border-line bg-surface-raised shadow-sm'}`}>
+            <div className="flex min-h-0 flex-1 flex-col">
                 <div className={`p-5 border-b ${'border-line'}`}>
                     <div className="flex flex-col gap-2">
                         <img
@@ -67,33 +68,42 @@ export default function Sidebar() {
                     </div>
                 </div>
 
-                <nav className="p-4 space-y-2">
-                    {links.map((link) => {
-                        const isActive = pathname.startsWith(link.href) && link.href !== '/dashboard' || pathname === link.href;
-                        const Icon = link.icon;
-                        return (
-                            <Link key={link.href} href={link.href}>
-                                <div className={`group relative flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold transition-all duration-200 ${isActive
-                                        ? dark ? 'bg-gradient-to-r from-brand-gold/20 to-transparent text-gold-ink shadow-inner' : 'bg-brand-gold/10 text-gold-ink shadow-inner'
-                                        : 'text-ink-muted hover:bg-ink/[0.06] hover:text-ink'
-                                    }`}>
-                                    {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full bg-brand-gold" />}
-                                    <Icon size={19} className={`transition-colors ${isActive ? 'text-accent' : dark ? 'text-ink-muted group-hover:text-ink-muted' : 'text-ink group-hover:text-ink'}`} />
-                                    <span>{link.name}</span>
-                                    {link.href === '/dashboard/inbox' && unread > 0 && (
-                                        <span className="ml-auto bg-brand-gold text-ink-on-gold text-[10px] font-black rounded-full min-w-5 h-5 px-1.5 inline-flex items-center justify-center">
-                                            {unread}
-                                        </span>
-                                    )}
-                                    {link.href === '/dashboard/notifications' && notificationsUnread > 0 && (
-                                        <span className="ml-auto bg-brand-gold text-ink-on-gold text-[10px] font-black rounded-full min-w-5 h-5 px-1.5 inline-flex items-center justify-center">
-                                            {notificationsUnread}
-                                        </span>
-                                    )}
-                                </div>
-                            </Link>
-                        );
-                    })}
+                <nav aria-label={t('sidebar.navigation')} className="min-h-0 space-y-3 overflow-y-auto p-4">
+                    {sections.map((section) => (
+                        <div key={section.title || 'navigation-links'} className="space-y-1">
+                            {section.title && (
+                                <h2 className="px-3.5 pb-1 pt-2 text-[10px] font-black uppercase tracking-wider text-ink-muted/70">
+                                    {section.title}
+                                </h2>
+                            )}
+                            {section.links.map((link) => {
+                                const isActive = (pathname.startsWith(link.href) && link.href !== '/dashboard') || pathname === link.href;
+                                const Icon = link.icon;
+                                return (
+                                    <Link key={link.href} href={link.href}>
+                                        <div className={`group relative flex items-center gap-3 rounded-xl px-3.5 py-2.5 font-bold transition-all duration-200 ${isActive
+                                                ? dark ? 'bg-gradient-to-r from-brand-gold/20 to-transparent text-gold-ink shadow-inner' : 'bg-brand-gold/10 text-gold-ink shadow-inner'
+                                                : 'text-ink-muted hover:bg-ink/[0.06] hover:text-ink'
+                                            }`}>
+                                            {isActive && <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-brand-gold" />}
+                                            <Icon size={19} className={`transition-colors ${isActive ? 'text-accent' : dark ? 'text-ink-muted group-hover:text-ink-muted' : 'text-ink group-hover:text-ink'}`} />
+                                            <span>{link.name}</span>
+                                            {link.href === '/dashboard/inbox' && unread > 0 && (
+                                                <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-gold px-1.5 text-[10px] font-black text-ink-on-gold">
+                                                    {unread}
+                                                </span>
+                                            )}
+                                            {link.href === '/dashboard/notifications' && notificationsUnread > 0 && (
+                                                <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-gold px-1.5 text-[10px] font-black text-ink-on-gold">
+                                                    {notificationsUnread}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </Link>
+                                );
+                            })}
+                        </div>
+                    ))}
                 </nav>
             </div>
 

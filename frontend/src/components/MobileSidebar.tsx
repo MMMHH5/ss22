@@ -7,7 +7,7 @@ import { Menu, X, LogOut } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useI18n } from '@/lib/i18n-context';
 import { useTheme } from '@/lib/theme-context';
-import { buildNavLinks } from '@/lib/nav-links';
+import { buildNavLinks, groupStudentNavLinks } from '@/lib/nav-links';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import ThemeToggle from '@/components/ThemeToggle';
 import { createPortal } from 'react-dom';
@@ -56,6 +56,7 @@ export default function MobileSidebar() {
     const links = roleLinks.length > 0
         ? roleLinks
         : allNav.filter(link => ['/dashboard', '/dashboard/profile', '/dashboard/support'].includes(link.href));
+    const sections = roleKey === 'STUDENT' ? groupStudentNavLinks(links, t) : [{ title: '', links }];
     const adminLinks = pathname?.startsWith('/dashboard/admin')
         ? ADMIN_EXTRA_LINKS.filter(l => l.roles.includes(roleKey)).map(l => ({ ...l, name: t('admin.nav_' + l.href.split('/').pop()) }))
         : [];
@@ -90,21 +91,30 @@ export default function MobileSidebar() {
                         </div>
 
                         <div className="p-4 space-y-2">
-                            {links.map((link) => {
-                                const isActive = (pathname.startsWith(link.href) && link.href !== '/dashboard') || pathname === link.href;
-                                const Icon = link.icon;
-                                return (
-                                    <Link key={link.href} href={link.href} onClick={() => setOpen(false)}>
-                                        <div className={`flex items-center gap-3 px-3.5 py-3 rounded-xl font-bold transition-colors ${isActive
-                                                ? dark ? 'bg-brand-gold/20 text-gold-ink' : 'bg-brand-gold/10 text-gold-ink'
-                                                : 'text-ink-muted hover:bg-ink/[0.06] hover:text-ink'
-                                            }`}>
-                                            <Icon size={19} />
-                                            <span>{link.name}</span>
-                                        </div>
-                                    </Link>
-                                );
-                            })}
+                            {sections.map((section) => (
+                                <div key={section.title || 'navigation-links'} className="space-y-1">
+                                    {section.title && (
+                                        <h2 className="px-3.5 pb-1 pt-3 text-[10px] font-black uppercase tracking-wider text-ink-muted/70">
+                                            {section.title}
+                                        </h2>
+                                    )}
+                                    {section.links.map((link) => {
+                                        const isActive = (pathname.startsWith(link.href) && link.href !== '/dashboard') || pathname === link.href;
+                                        const Icon = link.icon;
+                                        return (
+                                            <Link key={link.href} href={link.href} onClick={() => setOpen(false)}>
+                                                <div className={`flex items-center gap-3 rounded-xl px-3.5 py-3 font-bold transition-colors ${isActive
+                                                        ? dark ? 'bg-brand-gold/20 text-gold-ink' : 'bg-brand-gold/10 text-gold-ink'
+                                                        : 'text-ink-muted hover:bg-ink/[0.06] hover:text-ink'
+                                                    }`}>
+                                                    <Icon size={19} />
+                                                    <span>{link.name}</span>
+                                                </div>
+                                            </Link>
+                                        );
+                                    })}
+                                </div>
+                            ))}
                             {adminLinks.map((link) => {
                                 const isActive = pathname.startsWith(link.href);
                                 const Icon = link.icon;

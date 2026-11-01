@@ -16,7 +16,6 @@ import {
     ClipboardCheck,
     MessagesSquare,
     CalendarClock,
-    Info,
     BadgeCheck,
     type LucideIcon,
 } from 'lucide-react';
@@ -26,6 +25,47 @@ export interface NavLink {
     href: string;
     icon: LucideIcon;
     roles: string[];
+}
+
+export interface NavSection {
+    title: string;
+    links: NavLink[];
+}
+
+export function groupStudentNavLinks(
+    links: NavLink[],
+    t: (key: string) => string,
+): NavSection[] {
+    const sections = [
+        {
+            title: t('sidebar.nav_overview'),
+            hrefs: ['/dashboard'],
+        },
+        {
+            title: t('sidebar.nav_learning'),
+            hrefs: ['/dashboard/explore', '/dashboard/my-courses', '/dashboard/my-grades', '/dashboard/tasks'],
+        },
+        {
+            title: t('sidebar.nav_communication'),
+            hrefs: ['/dashboard/inbox', '/dashboard/batch-chats', '/dashboard/notifications', '/dashboard/support'],
+        },
+        {
+            title: t('sidebar.nav_account_payments'),
+            hrefs: [
+                '/dashboard/profile',
+                '/dashboard/payments',
+                '/dashboard/refunds',
+                '/dashboard/profile?tab=certificates',
+            ],
+        },
+    ];
+
+    return sections.flatMap((section) => {
+        const sectionLinks = section.hrefs
+            .map((href) => links.find((link) => link.href === href))
+            .filter((link): link is NavLink => !!link);
+        return sectionLinks.length ? [{ title: section.title, links: sectionLinks }] : [];
+    });
 }
 
 export function buildNavLinks(t: (key: string) => string): NavLink[] {

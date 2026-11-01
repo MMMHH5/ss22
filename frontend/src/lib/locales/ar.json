@@ -277,7 +277,12 @@
         "notifications": "الإشعارات",
         "batch_chats": "محادثة الدورة",
         "submissions": "تسليمات الطلاب",
-        "instructor_profile": "ملفي المهني"
+        "instructor_profile": "ملفي المهني",
+        "navigation": "التنقل الرئيسي",
+        "nav_overview": "الرئيسية",
+        "nav_learning": "التعلم",
+        "nav_communication": "التواصل",
+        "nav_account_payments": "الحساب والمدفوعات"
     },
     "submissionsInbox": {
         "title": "تسليمات الطلاب",

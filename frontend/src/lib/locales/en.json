@@ -277,7 +277,12 @@
         "notifications": "Notifications",
         "batch_chats": "Course Chat",
         "submissions": "Submissions",
-        "instructor_profile": "Instructor Profile"
+        "instructor_profile": "Instructor Profile",
+        "navigation": "Main navigation",
+        "nav_overview": "Overview",
+        "nav_learning": "Learning",
+        "nav_communication": "Communication",
+        "nav_account_payments": "Account & payments"
     },
     "submissionsInbox": {
         "title": "Student Submissions",
