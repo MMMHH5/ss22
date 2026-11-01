@@ -7,6 +7,7 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "start": "nest start",
     "dev": "nest start --watch",
+    "admin:bootstrap": "ts-node scripts/bootstrap-admin.ts",
     "test": "TS_NODE_PROJECT=tests/tsconfig.json node --test --require ts-node/register tests/*.test.ts"
   },
   "dependencies": {

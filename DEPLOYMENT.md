@@ -55,9 +55,15 @@ and users without saved preferences receive all applicable reminder types. No
 email is sent by this job.
 
 The Blueprint uses absolute public `onrender.com` URLs for frontend API
-requests, site metadata, and backend CORS origins. Do not replace these with
-Render's short internal service hostnames in browser-facing variables. If you
-later add custom domains, update
+requests and site metadata. The learner API also allows
+`https://laxalab.com` and `https://www.laxalab.com` in CORS; the admin API only
+allows `https://m.o2.h.laxalab.com`. The admin frontend's public site URL is
+also set to that custom domain. Add `m.o2.h.laxalab.com` as a custom domain to
+the `laxalab-web-admin` Render service and configure its DNS as Render directs;
+the domain will not serve the admin UI until that verification is complete.
+Do not replace browser-facing API URLs with Render's short internal service
+hostnames. If you use another custom frontend domain, add its exact origin to
+`CORS_ORIGINS` on the corresponding API and update
 `NEXT_PUBLIC_SITE_URL` / `NEXT_PUBLIC_API_URL` on each frontend and
 `FRONTEND_URL` on its matching API, then redeploy the frontends (Next.js embeds
 `NEXT_PUBLIC_*` values during build). Configure any Google OAuth callback and
@@ -92,6 +98,26 @@ verified.
 This repository is prepared for Render deployment, but the Blueprint must be
 connected and launched from your Render account. Never paste Render or R2
 credentials into chat or commit them to the repository.
+
+### Create or reset the Render admin account
+
+The Blueprint does not create login accounts. To provision only
+`admin@laxalab.com`, run `npm run admin:bootstrap` from the repository root in
+an interactive local terminal. The command prompts for Render's external
+PostgreSQL URL and a new password without echoing either secret. If the account
+already exists, it also prompts for Render's external Redis URL so the cached
+identity can be invalidated. It changes no other accounts and does not print or
+save the password.
+
+Find the external URLs in the Render dashboard under the `laxalab-postgres`
+and `laxalab-redis` resources. If external access is blocked, allow only your
+current IP in the resource's IP allow list, then remove that rule after the
+bootstrap completes. Do not run `npx prisma db seed` for this operation: that
+seed handles five accounts.
+
+The admin must sign in at the admin frontend, set a personal password, and
+complete the required two-factor authentication setup. Use a new password;
+never reuse credentials exposed in chat or local files.
 
 ---
 
