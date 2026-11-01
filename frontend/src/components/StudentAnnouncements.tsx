@@ -76,7 +76,7 @@ export default function StudentAnnouncements() {
             }
         })();
         return () => { active = false; };
-    }, [enrollments]);
+    }, [enrollments, pick]);
 
     if (loading) {
         return (

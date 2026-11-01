@@ -7,7 +7,8 @@ import { Menu, X, LogOut } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useI18n } from '@/lib/i18n-context';
 import { useTheme } from '@/lib/theme-context';
-import { buildNavLinks, groupStudentNavLinks } from '@/lib/nav-links';
+import { api, getErrorMessage } from '@/lib/api';
+import { buildNavLinks, groupInstructorNavLinks, groupStudentNavLinks } from '@/lib/nav-links';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import ThemeToggle from '@/components/ThemeToggle';
 import { createPortal } from 'react-dom';
@@ -31,6 +32,9 @@ export default function MobileSidebar() {
     const { dark } = useTheme();
     const pathname = usePathname();
     const [open, setOpen] = useState(false);
+    const [unread, setUnread] = useState(0);
+    const [notificationsUnread, setNotificationsUnread] = useState(0);
+    const [unreadError, setUnreadError] = useState<string | null>(null);
 
     useEffect(() => {
         if (!open) return;
@@ -48,6 +52,27 @@ export default function MobileSidebar() {
         };
     }, [open]);
 
+    useEffect(() => {
+        if (!open || !user) return;
+        let active = true;
+        const loadCounts = async () => {
+            setUnreadError(null);
+            try {
+                const [messages, notifications] = await Promise.all([
+                    api.get('/messages/unread-count'),
+                    api.get('/notifications/unread-count'),
+                ]);
+                if (!active) return;
+                setUnread(messages.data?.count ?? 0);
+                setNotificationsUnread(notifications.data?.count ?? 0);
+            } catch (error) {
+                if (active) setUnreadError(getErrorMessage(error) || t('common.error'));
+            }
+        };
+        void loadCounts();
+        return () => { active = false; };
+    }, [open, user, t]);
+
     if (!user) return null;
 
     const roleKey = (user.role || '').toUpperCase();
@@ -56,7 +81,11 @@ export default function MobileSidebar() {
     const links = roleLinks.length > 0
         ? roleLinks
         : allNav.filter(link => ['/dashboard', '/dashboard/profile', '/dashboard/support'].includes(link.href));
-    const sections = roleKey === 'STUDENT' ? groupStudentNavLinks(links, t) : [{ title: '', links }];
+    const sections = roleKey === 'STUDENT'
+        ? groupStudentNavLinks(links, t)
+        : roleKey === 'INSTRUCTOR'
+            ? groupInstructorNavLinks(links, t)
+            : [{ title: '', links }];
     const adminLinks = pathname?.startsWith('/dashboard/admin')
         ? ADMIN_EXTRA_LINKS.filter(l => l.roles.includes(roleKey)).map(l => ({ ...l, name: t('admin.nav_' + l.href.split('/').pop()) }))
         : [];
@@ -109,12 +138,27 @@ export default function MobileSidebar() {
                                                     }`}>
                                                     <Icon size={19} />
                                                     <span>{link.name}</span>
+                                                    {link.href === '/dashboard/inbox' && unread > 0 && (
+                                                        <span className="ms-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-gold px-1.5 text-[10px] font-black text-ink-on-gold">
+                                                            {unread > 99 ? '99+' : unread}
+                                                        </span>
+                                                    )}
+                                                    {link.href === '/dashboard/notifications' && notificationsUnread > 0 && (
+                                                        <span className="ms-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-gold px-1.5 text-[10px] font-black text-ink-on-gold">
+                                                            {notificationsUnread > 99 ? '99+' : notificationsUnread}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </Link>
                                         );
                                     })}
                                 </div>
                             ))}
+                            {unreadError && (
+                                <p role="alert" className="px-3.5 py-2 text-xs font-semibold text-danger">
+                                    {unreadError}
+                                </p>
+                            )}
                             {adminLinks.map((link) => {
                                 const isActive = pathname.startsWith(link.href);
                                 const Icon = link.icon;

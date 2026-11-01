@@ -282,7 +282,9 @@
         "nav_overview": "الرئيسية",
         "nav_learning": "التعلم",
         "nav_communication": "التواصل",
-        "nav_account_payments": "الحساب والمدفوعات"
+        "nav_account_payments": "الحساب والمدفوعات",
+        "nav_teaching": "التدريس",
+        "nav_account": "الحساب"
     },
     "submissionsInbox": {
         "title": "تسليمات الطلاب",
@@ -401,7 +403,10 @@
         "no_active_courses": "لا توجد لديك دورات نشطة حالياً.",
         "explore": "استكشف الدورات",
         "progress": "التقدم",
-        "progress_unavailable": "مؤشر التقدم غير متاح لهذه الدورة."
+        "progress_unavailable": "مؤشر التقدم غير متاح لهذه الدورة.",
+        "optional_analytics": "إحصاءات التعلم",
+        "optional_achievements": "النقاط والشارات",
+        "optional_paths": "مسارات التعلم"
     },
     "gdpr": {
         "heading": "الخصوصية وحقوق البيانات",

@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from 'react';
 import { useFetchData } from '@/lib/useFetchData';
 import { useI18n } from '@/lib/i18n-context';
 import {
@@ -63,14 +62,13 @@ export default function GamificationPanel({ userId }: Props) {
 
     const earnedTypes = new Set((meRes.data?.badges || []).map((b) => b.badgeType));
 
-    const badgeList = useMemo(() => {
-        const catalog = Object.entries(BADGE_CATALOG).map(([type, def]) => ({ type, ...def }));
-        const extra = [...earnedTypes]
-            .filter((t) => !BADGE_CATALOG[t])
-            .map((t) => ({ type: t, icon: Award, ar: t, en: t }));
-        return [...catalog, ...extra];
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [meRes.data]);
+    const earnedBadges = Object.entries(BADGE_CATALOG)
+        .filter(([type]) => earnedTypes.has(type))
+        .map(([type, definition]) => ({ type, ...definition }));
+    const extraEarnedBadges = [...earnedTypes]
+        .filter((type) => !BADGE_CATALOG[type])
+        .map((type) => ({ type, icon: Award, ar: type, en: type }));
+    const badgeList = [...earnedBadges, ...extraEarnedBadges];
 
     if (meRes.loading) {
         return (
@@ -148,30 +146,29 @@ export default function GamificationPanel({ userId }: Props) {
                             {isAr ? 'مجموعة الشارات' : 'Badge collection'}
                         </h3>
                         <span className="text-[11px] font-bold text-gray-500">
-                            {[...earnedTypes].length}/{badgeList.length}
+                            {badgeList.length}
                         </span>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3">
-                        {badgeList.map(({ type, icon: Icon, ar, en }) => {
-                            const earned = earnedTypes.has(type);
-                            return (
+                    {badgeList.length === 0 ? (
+                        <p className="rounded-xl border border-dashed border-white/10 px-4 py-5 text-center text-xs font-semibold text-gray-400">
+                            {isAr ? 'لم تحصل على شارات بعد. واصل التعلم لاكتسابها.' : 'No badges earned yet. Keep learning to earn one.'}
+                        </p>
+                    ) : (
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-6">
+                            {badgeList.map(({ type, icon: Icon, ar, en }) => (
                                 <div
                                     key={type}
-                                    title={earned ? (isAr ? ar : en) : (isAr ? 'لم يتم كسبها بعد' : 'Not earned yet')}
-                                    className={`rounded-xl border p-3 flex flex-col items-center gap-1.5 text-center transition-all ${
-                                        earned
-                                            ? 'bg-brand-gold/5 border-brand-gold/30 hover:border-brand-gold/50'
-                                            : 'bg-white/[0.02] border-white/5 opacity-35 grayscale'
-                                    }`}
+                                    title={isAr ? ar : en}
+                                    className="flex flex-col items-center gap-1.5 rounded-xl border border-brand-gold/30 bg-brand-gold/5 p-3 text-center transition-all hover:border-brand-gold/50"
                                 >
-                                    <Icon size={22} className={earned ? 'text-brand-gold-light' : 'text-gray-500'} />
-                                    <span className={`text-[10px] font-bold leading-tight ${earned ? 'text-gray-200' : 'text-gray-500'}`}>
+                                    <Icon size={22} className="text-brand-gold-light" />
+                                    <span className="text-[10px] font-bold leading-tight text-gray-200">
                                         {pick({ labelAr: ar, labelEn: en }, 'label')}
                                     </span>
                                 </div>
-                            );
-                        })}
-                    </div>
+                            ))}
+                        </div>
+                    )}
             </section>
         </div>
     );

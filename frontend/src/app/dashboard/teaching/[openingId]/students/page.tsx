@@ -28,7 +28,13 @@ interface EnrollmentRow {
     id: string;
     status: string;
     createdAt: string;
-    student: { id: string; email: string; name?: string | null };
+    student: {
+        id: string;
+        email: string;
+        name?: string | null;
+        nameAr?: string | null;
+        nameEn?: string | null;
+    };
     grades: { assessmentId: string; score: number }[];
 }
 
@@ -84,14 +90,25 @@ export default function OpeningStudentsPage() {
     const { data: roster, loading, error } = useFetchData<RosterData>(oid ? `/openings/${oid}/roster` : null);
 
     const opening = (openings || []).find((o) => o.id === oid);
+    const studentName = (student: EnrollmentRow['student']) => {
+        const names = isAr
+            ? [student.nameAr, student.name, student.nameEn]
+            : [student.nameEn, student.name, student.nameAr];
+        return names.find((name) => name?.trim())?.trim() || '';
+    };
 
     const rows = useMemo(() => {
         const enrollments = roster?.enrollments || [];
         const assessments = roster?.assessments || [];
         const totalMax = assessments.reduce((s, a) => s + (a.maxScore ?? 0), 0);
-        const q = search.trim().toLowerCase();
+        const q = search.trim().toLocaleLowerCase(locale);
         return enrollments
-            .filter((e) => !q || e.student.email.toLowerCase().includes(q))
+            .filter((e) => !q || [
+                e.student.email,
+                e.student.name,
+                e.student.nameAr,
+                e.student.nameEn,
+            ].some((value) => value?.toLocaleLowerCase(locale).includes(q)))
             .map((e) => {
                 if (!totalMax) return { ...e, progress: null as number | null };
                 const earned = assessments.reduce((sum, a) => {
@@ -100,7 +117,7 @@ export default function OpeningStudentsPage() {
                 }, 0);
                 return { ...e, progress: Math.min(100, Math.round((earned / totalMax) * 100)) };
             });
-    }, [roster, search]);
+    }, [roster, search, locale]);
 
     const approvedCount = rows.filter((r) => r.status === 'APPROVED').length;
     const progressValues = rows.map((r) => r.progress).filter((p): p is number => p != null);
@@ -169,7 +186,7 @@ export default function OpeningStudentsPage() {
                             <input
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                placeholder={isAr ? 'ابحث بالبريد الإلكتروني...' : 'Search by email...'}
+                                placeholder={isAr ? 'ابحث باسم الطالب أو بريده الإلكتروني...' : 'Search by student name or email...'}
                                 className="w-full ps-10 pe-4 py-2.5 bg-brand-navy-dark border border-white/10 rounded-xl text-sm text-white placeholder:text-gray-500 focus:ring-2 focus:ring-brand-gold/40 focus:border-brand-gold/40 outline-none transition"
                             />
                         </div>
@@ -189,12 +206,12 @@ export default function OpeningStudentsPage() {
                             <article key={r.id} className="min-w-0 space-y-3 p-4">
                                 <div className="flex min-w-0 items-start justify-between gap-3">
                                     <div className="flex min-w-0 items-center gap-3">
-                                        <div className={`w-9 h-9 rounded-full ${avatarToneFor(r.student.email)} flex items-center justify-center font-black text-sm shrink-0`}>
-                                            {r.student.email.charAt(0).toUpperCase()}
+                                        <div className={`w-9 h-9 rounded-full ${avatarToneFor(studentName(r.student) || r.student.email)} flex items-center justify-center font-black text-sm shrink-0`}>
+                                            {(studentName(r.student) || r.student.email).charAt(0).toLocaleUpperCase(locale)}
                                         </div>
                                         <div className="min-w-0">
-                                            <p className="break-all font-bold text-white">{r.student.email}</p>
-                                            {r.student.name && <p className="text-xs text-gray-500 truncate">{r.student.name}</p>}
+                                            <p className="break-all font-bold text-white">{studentName(r.student) || r.student.email}</p>
+                                            {studentName(r.student) && <p className="text-xs text-gray-500 truncate">{r.student.email}</p>}
                                         </div>
                                     </div>
                                     <Badge tone={statusTone[r.status] ?? 'gray'}>
@@ -245,12 +262,12 @@ export default function OpeningStudentsPage() {
                                         <tr key={r.id} className="border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors">
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
-                                                    <div className={`w-9 h-9 rounded-full ${avatarToneFor(r.student.email)} flex items-center justify-center font-black text-sm shrink-0`}>
-                                                        {r.student.email.charAt(0).toUpperCase()}
+                                                    <div className={`w-9 h-9 rounded-full ${avatarToneFor(studentName(r.student) || r.student.email)} flex items-center justify-center font-black text-sm shrink-0`}>
+                                                        {(studentName(r.student) || r.student.email).charAt(0).toLocaleUpperCase(locale)}
                                                     </div>
                                                     <div className="min-w-0">
-                                                        <p className="font-bold text-white truncate">{r.student.email}</p>
-                                                        {r.student.name && <p className="text-xs text-gray-500 truncate">{r.student.name}</p>}
+                                                        <p className="font-bold text-white truncate">{studentName(r.student) || r.student.email}</p>
+                                                        {studentName(r.student) && <p className="text-xs text-gray-500 truncate">{r.student.email}</p>}
                                                     </div>
                                                 </div>
                                             </td>

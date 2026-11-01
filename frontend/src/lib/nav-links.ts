@@ -68,6 +68,37 @@ export function groupStudentNavLinks(
     });
 }
 
+export function groupInstructorNavLinks(
+    links: NavLink[],
+    t: (key: string) => string,
+): NavSection[] {
+    const sections = [
+        {
+            title: t('sidebar.nav_overview'),
+            hrefs: ['/dashboard'],
+        },
+        {
+            title: t('sidebar.nav_teaching'),
+            hrefs: ['/dashboard/teaching', '/dashboard/instructor-profile', '/dashboard/submissions'],
+        },
+        {
+            title: t('sidebar.nav_communication'),
+            hrefs: ['/dashboard/inbox', '/dashboard/batch-chats', '/dashboard/notifications', '/dashboard/support'],
+        },
+        {
+            title: t('sidebar.nav_account'),
+            hrefs: ['/dashboard/profile'],
+        },
+    ];
+
+    return sections.flatMap((section) => {
+        const sectionLinks = section.hrefs
+            .map((href) => links.find((link) => link.href === href))
+            .filter((link): link is NavLink => !!link);
+        return sectionLinks.length ? [{ title: section.title, links: sectionLinks }] : [];
+    });
+}
+
 export function buildNavLinks(t: (key: string) => string): NavLink[] {
     return [
         { name: t('sidebar.dashboard'), href: '/dashboard', icon: LayoutDashboard, roles: ['STUDENT', 'INSTRUCTOR', 'COURSE_MANAGER', 'FINANCE', 'ADMIN'] },

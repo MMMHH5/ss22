@@ -52,7 +52,7 @@ export class GradesService {
             this.prisma.enrollment.findMany({
                 where: { openingId },
                 include: {
-                    student: { select: { id: true, email: true } },
+                    student: { select: { id: true, email: true, metadata: true } },
                     grades: { select: { assessmentId: true, score: true, notes: true } },
                 },
                 orderBy: { createdAt: 'asc' },
@@ -74,7 +74,24 @@ export class GradesService {
             },
             course: opening.course,
             assessments,
-            enrollments,
+            enrollments: enrollments.map((enrollment) => {
+                const metadata = enrollment.student.metadata;
+                const studentMetadata = metadata && typeof metadata === 'object' && !Array.isArray(metadata)
+                    ? metadata as Record<string, unknown>
+                    : {};
+                const fullName = typeof studentMetadata.fullName === 'string' ? studentMetadata.fullName.trim() : '';
+                const nameAr = typeof studentMetadata.nameAr === 'string' ? studentMetadata.nameAr.trim() : '';
+                const nameEn = typeof studentMetadata.nameEn === 'string' ? studentMetadata.nameEn.trim() : '';
+                const { metadata: _metadata, ...student } = enrollment.student;
+                return {
+                    ...enrollment,
+                    student: {
+                        ...student,
+                        nameAr: nameAr || fullName || null,
+                        nameEn: nameEn || fullName || null,
+                    },
+                };
+            }),
         };
     }
 

@@ -256,6 +256,22 @@ export default function LearningAnalytics({ courseId }: Props) {
 
     // ===== Overall =====
     const o = overallRes.data;
+    const hasLearningData = Number(o?.totalSeconds ?? 0) > 0
+        || Number(o?.coursesInProgress ?? 0) > 0
+        || Number(o?.coursesCompleted ?? 0) > 0
+        || Number(o?.streak ?? 0) > 0;
+    const hasDailyActivity = (o?.dailyActivity ?? []).some((day) => Number(day.seconds) > 0);
+    if (!hasLearningData) {
+        return (
+            <div className="rounded-2xl border border-dashed border-white/10 bg-brand-navy-dark p-6 text-center">
+                <BookOpen size={24} className="mx-auto mb-2 text-gray-500" />
+                <p className="text-sm font-bold text-gray-300">
+                    {isAr ? 'ابدأ دورة لتظهر إحصاءات تقدمك هنا.' : 'Start a course to see your learning insights here.'}
+                </p>
+            </div>
+        );
+    }
+
     const stats = [
         { icon: Clock, color: 'text-brand-navy-light', bg: 'bg-brand-navy-light/10 border-brand-navy-light/30', value: fmtDuration(Number(o?.totalSeconds ?? 0), isAr), label: isAr ? 'إجمالي وقت التعلم' : 'Total learning time' },
         { icon: BookOpen, color: 'text-brand-gold-light', bg: 'bg-brand-gold/10 border-brand-gold/30', value: String(Number(o?.coursesInProgress ?? 0)), label: isAr ? 'دورات قيد التقدم' : 'Courses in progress' },
@@ -277,10 +293,12 @@ export default function LearningAnalytics({ courseId }: Props) {
                 ))}
             </div>
 
-            <div className="bg-brand-navy-dark border border-white/5 rounded-2xl p-5">
-                <h3 className="text-sm font-black text-white mb-4">{isAr ? 'نشاط آخر ٣٠ يوماً' : 'Last 30 days activity'}</h3>
-                <Heatmap activity={o?.dailyActivity} isAr={isAr} />
-            </div>
+            {hasDailyActivity && (
+                <div className="bg-brand-navy-dark border border-white/5 rounded-2xl p-5">
+                    <h3 className="text-sm font-black text-white mb-4">{isAr ? 'نشاط آخر ٣٠ يوماً' : 'Last 30 days activity'}</h3>
+                    <Heatmap activity={o?.dailyActivity} isAr={isAr} />
+                </div>
+            )}
         </div>
     );
 }

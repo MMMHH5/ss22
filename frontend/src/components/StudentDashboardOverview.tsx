@@ -184,14 +184,19 @@ export default function StudentDashboardOverview() {
                 </section>
 
                 <section className="min-w-0 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-white/5 dark:bg-brand-navy-dark sm:p-5" aria-labelledby="student-sessions-heading">
-                    <div className="mb-4 flex items-center gap-2.5">
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
-                            <CalendarDays size={18} />
-                        </span>
-                        <div>
-                            <h2 id="student-sessions-heading" className="font-black text-brand-navy dark:text-white">{t('studentHome.sessions_heading')}</h2>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">{t('studentHome.sessions_subtitle')}</p>
+                    <div className="mb-4 flex items-center justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-2.5">
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
+                                <CalendarDays size={18} />
+                            </span>
+                            <div className="min-w-0">
+                                <h2 id="student-sessions-heading" className="font-black text-brand-navy dark:text-white">{t('studentHome.sessions_heading')}</h2>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">{t('studentHome.sessions_subtitle')}</p>
+                            </div>
                         </div>
+                        <Link href="/dashboard/my-courses" className="shrink-0 text-xs font-bold text-brand-gold-dark hover:underline dark:text-brand-gold-light">
+                            {t('studentHome.view_all')} <Arrow size={13} className="inline" />
+                        </Link>
                     </div>
                     {data.upcomingSessions.length === 0 ? (
                         <div className="rounded-xl border border-dashed border-gray-300 px-4 py-6 text-center dark:border-white/10">

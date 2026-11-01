@@ -6,8 +6,8 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useI18n } from '@/lib/i18n-context';
 import { useTheme } from '@/lib/theme-context';
-import { api } from '@/lib/api';
-import { buildNavLinks, groupStudentNavLinks } from '@/lib/nav-links';
+import { api, getErrorMessage } from '@/lib/api';
+import { buildNavLinks, groupInstructorNavLinks, groupStudentNavLinks } from '@/lib/nav-links';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import ThemeToggle from '@/components/ThemeToggle';
 import { LogOut } from 'lucide-react';
@@ -19,11 +19,13 @@ export default function Sidebar() {
     const { dark } = useTheme();
     const [unread, setUnread] = useState(0);
     const [notificationsUnread, setNotificationsUnread] = useState(0);
+    const [unreadError, setUnreadError] = useState<string | null>(null);
 
     useEffect(() => {
         if (!user) return;
         let active = true;
         const load = async () => {
+            setUnreadError(null);
             try {
                 const [msgRes, notifRes] = await Promise.all([
                     api.get('/messages/unread-count'),
@@ -33,14 +35,14 @@ export default function Sidebar() {
                     setUnread(msgRes.data?.count ?? 0);
                     setNotificationsUnread(notifRes.data?.count ?? 0);
                 }
-            } catch {
-                /* silent */
+            } catch (error) {
+                if (active) setUnreadError(getErrorMessage(error) || t('common.error'));
             }
         };
         load();
         const timer = setInterval(load, 15000);
         return () => { active = false; clearInterval(timer); };
-    }, [user]);
+    }, [user, t]);
 
     if (!user) return null;
 
@@ -50,7 +52,11 @@ export default function Sidebar() {
     const links = roleLinks.length > 0
         ? roleLinks
         : allNav.filter(link => ['/dashboard', '/dashboard/profile', '/dashboard/support'].includes(link.href));
-    const sections = roleKey === 'STUDENT' ? groupStudentNavLinks(links, t) : [{ title: '', links }];
+    const sections = roleKey === 'STUDENT'
+        ? groupStudentNavLinks(links, t)
+        : roleKey === 'INSTRUCTOR'
+            ? groupInstructorNavLinks(links, t)
+            : [{ title: '', links }];
 
     return (
         <aside className={`sticky top-0 hidden h-screen w-64 shrink-0 flex-col justify-between lg:flex ${dark ? 'bg-gradient-to-b from-brand-navy via-[#0e2a52] to-[#0a1e3c]' : 'border-r border-line bg-surface-raised shadow-sm'}`}>
@@ -104,6 +110,11 @@ export default function Sidebar() {
                             })}
                         </div>
                     ))}
+                    {unreadError && (
+                        <p role="alert" className="px-3.5 py-2 text-xs font-semibold text-danger">
+                            {unreadError}
+                        </p>
+                    )}
                 </nav>
             </div>
 

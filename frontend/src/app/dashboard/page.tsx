@@ -3,8 +3,7 @@
 import { useAuth } from '@/lib/auth-context';
 import { useFetchData } from '@/lib/useFetchData';
 import { useI18n } from '@/lib/i18n-context';
-import { Activity, BookOpen, Clock, Compass, GraduationCap, LifeBuoy } from 'lucide-react';
-import Link from 'next/link';
+import { Activity, BookOpen, Clock, ChevronDown } from 'lucide-react';
 import { StatCard } from '@/app/dashboard/admin/components';
 import StudentAnnouncements from '@/components/StudentAnnouncements';
 import GamificationPanel from '@/components/GamificationPanel';
@@ -117,51 +116,35 @@ export default function DashboardPage() {
 
             {isStudent ? (
                 <div className="space-y-5 sm:space-y-6 animate-fade-in-up">
-                    <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-4">
-                        <Link href="/dashboard/explore" className="group flex min-w-0 items-center gap-3 rounded-2xl border border-white/5 bg-brand-navy-dark p-4 transition-all hover:-translate-y-0.5 hover:border-brand-gold/20 hover:shadow-xl">
-                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-gold/10 text-brand-gold-light group-hover:scale-105 transition-transform">
-                                <Compass size={21} />
-                            </span>
-                            <span className="min-w-0">
-                                <span className="block font-black text-white">{t('landing.explore_courses')}</span>
-                                <span className="mt-0.5 block text-xs text-gray-400">{t('dashboard.explore_desc')}</span>
-                            </span>
-                        </Link>
-                        <Link href="/dashboard/my-courses" className="group flex min-w-0 items-center gap-3 rounded-2xl border border-white/5 bg-brand-navy-dark p-4 transition-all hover:-translate-y-0.5 hover:border-brand-gold/20 hover:shadow-xl">
-                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-gold/10 text-brand-gold-light group-hover:scale-105 transition-transform">
-                                <BookOpen size={21} />
-                            </span>
-                            <span className="min-w-0">
-                                <span className="block font-black text-white">{t('sidebar.my_courses')}</span>
-                                <span className="mt-0.5 block text-xs text-gray-400">{t('dashboard.my_courses_desc')}</span>
-                            </span>
-                        </Link>
-                        <Link href="/dashboard/my-grades" className="group flex min-w-0 items-center gap-3 rounded-2xl border border-white/5 bg-brand-navy-dark p-4 transition-all hover:-translate-y-0.5 hover:border-brand-gold/20 hover:shadow-xl">
-                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-gold/10 text-brand-gold-light group-hover:scale-105 transition-transform">
-                                <GraduationCap size={21} />
-                            </span>
-                            <span className="min-w-0">
-                                <span className="block font-black text-white">{t('sidebar.my_grades')}</span>
-                                <span className="mt-0.5 block text-xs text-gray-400">{t('dashboard.my_grades_desc')}</span>
-                            </span>
-                        </Link>
-                        <Link href="/dashboard/support" className="group flex min-w-0 items-center gap-3 rounded-2xl border border-white/5 bg-brand-navy-dark p-4 transition-all hover:-translate-y-0.5 hover:border-brand-gold/20 hover:shadow-xl">
-                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-gold/10 text-brand-gold-light group-hover:scale-105 transition-transform">
-                                <LifeBuoy size={21} />
-                            </span>
-                            <span className="min-w-0">
-                                <span className="block font-black text-white">{t('sidebar.support')}</span>
-                                <span className="mt-0.5 block text-xs text-gray-400">{t('dashboard.support_desc')}</span>
-                            </span>
-                        </Link>
-                    </div>
                     <AnnouncementBanner variant="dashboard" />
-                    <div className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-2 sm:gap-6">
-                        <StudentAnnouncements />
-                        <GamificationPanel />
-                    </div>
-                    <LearningAnalytics />
-                    <LearningPathList mode="browse" />
+                    <StudentAnnouncements />
+                    <details className="group rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-white/5 dark:bg-brand-navy-dark">
+                        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-2xl p-4 font-black text-brand-navy marker:hidden hover:bg-gray-50 dark:text-white dark:hover:bg-white/[0.03] sm:p-5">
+                            <span>{t('studentHome.optional_analytics')}</span>
+                            <ChevronDown size={18} className="shrink-0 text-gray-500 transition-transform group-open:rotate-180" />
+                        </summary>
+                        <div className="border-t border-gray-200 p-3 dark:border-white/5 sm:p-5">
+                            <LearningAnalytics />
+                        </div>
+                    </details>
+                    <details className="group rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-white/5 dark:bg-brand-navy-dark">
+                        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-2xl p-4 font-black text-brand-navy marker:hidden hover:bg-gray-50 dark:text-white dark:hover:bg-white/[0.03] sm:p-5">
+                            <span>{t('studentHome.optional_achievements')}</span>
+                            <ChevronDown size={18} className="shrink-0 text-gray-500 transition-transform group-open:rotate-180" />
+                        </summary>
+                        <div className="border-t border-gray-200 p-3 dark:border-white/5 sm:p-5">
+                            <GamificationPanel />
+                        </div>
+                    </details>
+                    <details className="group rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-white/5 dark:bg-brand-navy-dark">
+                        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-2xl p-4 font-black text-brand-navy marker:hidden hover:bg-gray-50 dark:text-white dark:hover:bg-white/[0.03] sm:p-5">
+                            <span>{t('studentHome.optional_paths')}</span>
+                            <ChevronDown size={18} className="shrink-0 text-gray-500 transition-transform group-open:rotate-180" />
+                        </summary>
+                        <div className="border-t border-gray-200 p-3 dark:border-white/5 sm:p-5">
+                            <LearningPathList mode="browse" />
+                        </div>
+                    </details>
                 </div>
             ) : (
                 <div className="space-y-6 animate-fade-in-up">
