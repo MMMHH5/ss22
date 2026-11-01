@@ -78,17 +78,17 @@ export default function InstructorDashboard() {
     };
 
     return (
-        <section className="space-y-6" aria-label={isAr ? 'ملخص التدريس' : 'Teaching summary'}>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="min-w-0 space-y-5 sm:space-y-6" aria-label={isAr ? 'ملخص التدريس' : 'Teaching summary'}>
+            <div className="grid min-w-0 grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
                 {metrics.map(({ icon: Icon, label, value }) => (
-                    <div key={label} className="rounded-2xl border border-white/10 bg-brand-navy-dark p-5">
-                        <div className="mb-3 flex items-center gap-3">
-                            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-gold/10 text-brand-gold-light">
-                                <Icon size={20} />
+                    <div key={label} className="min-w-0 rounded-2xl border border-white/10 bg-brand-navy-dark p-3 sm:p-5">
+                        <div className="mb-2 sm:mb-3 flex min-w-0 items-center gap-2 sm:gap-3">
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-gold/10 text-brand-gold-light sm:h-10 sm:w-10">
+                                <Icon size={18} />
                             </span>
-                            <p className="text-sm font-bold text-gray-400">{label}</p>
+                            <p className="min-w-0 text-[11px] leading-snug font-bold text-gray-400 sm:text-sm">{label}</p>
                         </div>
-                        <p className="text-3xl font-black text-white">
+                        <p className="text-2xl font-black text-white sm:text-3xl">
                             {loading ? '…' : (value ?? '—')}
                         </p>
                     </div>

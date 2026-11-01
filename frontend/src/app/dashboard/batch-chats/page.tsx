@@ -201,13 +201,13 @@ export default function BatchChatsPage() {
 
     return (
         <ProtectedRoute allowedRoles={['STUDENT', 'INSTRUCTOR', 'COURSE_MANAGER', 'ADMIN']}>
-        <div className="space-y-6 animate-fade-in">
+        <div className="min-w-0 space-y-5 sm:space-y-6 animate-fade-in">
             <PageHeader
                 title={t('batchChats.title')}
                 subtitle={t('batchChats.subtitle')}
             />
 
-            <div className="bg-white dark:bg-brand-navy-dark rounded-3xl shadow-sm border border-gray-200 dark:border-white/5 overflow-hidden flex flex-col md:flex-row min-h-[65vh]">
+            <div className="min-w-0 bg-white dark:bg-brand-navy-dark rounded-2xl sm:rounded-3xl shadow-sm border border-gray-200 dark:border-white/5 overflow-hidden flex flex-col md:flex-row min-h-[65vh]">
                 {/* Left sidebar — room list */}
                 <aside className={`md:w-80 lg:w-96 border-b md:border-b-0 md:border-e border-gray-200 dark:border-white/5 ${mobileShowChat ? 'hidden md:block' : 'block'}`}>
                     <div className="p-4 border-b border-gray-200 dark:border-white/5">
@@ -274,7 +274,7 @@ export default function BatchChatsPage() {
                 </aside>
 
                 {/* Right panel — chat thread */}
-                <section className={`flex-1 flex flex-col ${mobileShowChat ? 'flex' : 'hidden md:flex'}`}>
+                <section className={`min-w-0 flex-1 flex flex-col ${mobileShowChat ? 'flex' : 'hidden md:flex'}`}>
                     {!activeRoom ? (
                         <div className="flex-1 flex flex-col items-center justify-center text-center p-10">
                             <MessagesSquare size={40} className="text-gray-400 dark:text-gray-600 mb-4" />
@@ -284,7 +284,7 @@ export default function BatchChatsPage() {
                     ) : (
                         <>
                             {/* Header */}
-                            <div className="px-5 py-4 border-b border-gray-200 dark:border-white/5 bg-gray-50/80 dark:bg-white/5 flex items-center justify-between gap-3">
+                            <div className="px-3 sm:px-5 py-3 sm:py-4 border-b border-gray-200 dark:border-white/5 bg-gray-50/80 dark:bg-white/5 flex items-center justify-between gap-3">
                                 <div className="flex items-center gap-3 min-w-0">
                                     <button onClick={() => setMobileShowChat(false)} className="md:hidden text-gray-500 dark:text-gray-400 hover:text-brand-navy dark:hover:text-white">
                                         <ArrowLeft size={20} />
@@ -303,7 +303,7 @@ export default function BatchChatsPage() {
                             </div>
 
                             {/* Messages */}
-                            <div className="flex-1 overflow-y-auto p-5 space-y-3 bg-gray-50/60 dark:bg-brand-navy-dark h-[40vh] md:h-[calc(65vh-130px)] admin-scroll">
+                            <div className="min-w-0 flex-1 overflow-y-auto p-3 sm:p-5 space-y-3 bg-gray-50/60 dark:bg-brand-navy-dark h-[40vh] md:h-[calc(65vh-130px)] admin-scroll">
                                 {loadingThread ? (
                                     <div className="flex justify-center pt-8">
                                         <Loader className="animate-spin text-brand-gold-dark dark:text-brand-gold-light" size={24} />
@@ -322,7 +322,7 @@ export default function BatchChatsPage() {
                             </div>
 
                             {/* Input */}
-                            <div className="p-4 border-t border-gray-200 dark:border-white/5">
+                            <div className="p-3 sm:p-4 border-t border-gray-200 dark:border-white/5">
                                 {pendingAttachment && (
                                     <div className="mb-2 flex items-center justify-between bg-gray-100/60 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3 py-2">
                                         <div className="flex items-center gap-2 text-xs font-bold text-brand-navy dark:text-white">

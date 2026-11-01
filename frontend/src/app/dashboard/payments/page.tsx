@@ -186,10 +186,10 @@ export default function PaymentsPage() {
 
     return (
         <ProtectedRoute allowedRoles={['STUDENT']}>
-            <div className="bg-white dark:bg-brand-navy-dark p-8 rounded-3xl shadow-sm border border-gray-200 dark:border-white/5 min-h-[80vh] space-y-10">
+            <div className="min-w-0 bg-white dark:bg-brand-navy-dark p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl shadow-sm border border-gray-200 dark:border-white/5 min-h-[80vh] space-y-8 sm:space-y-10">
                 <div className="mb-2">
-                    <h2 className="text-3xl font-black text-brand-navy dark:text-white flex items-center gap-3">
-                        <Wallet size={32} className="text-brand-gold-dark dark:text-brand-gold-light" /> {t('payments.heading')}
+                    <h2 className="text-2xl sm:text-3xl font-black text-brand-navy dark:text-white flex items-center gap-2 sm:gap-3">
+                        <Wallet size={26} className="shrink-0 text-brand-gold-dark dark:text-brand-gold-light sm:w-8 sm:h-8" /> {t('payments.heading')}
                     </h2>
                     <p className="text-gray-500 dark:text-gray-400 mt-2">{t('payments.subtitle')}</p>
                 </div>
@@ -298,7 +298,7 @@ export default function PaymentsPage() {
             {/* Upload receipt modal */}
             {payable && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-brand-navy-dark rounded-2xl w-full max-w-lg p-8 shadow-2xl max-h-[90vh] overflow-y-auto border border-white/10">
+                    <div className="bg-brand-navy-dark rounded-2xl w-full max-w-lg p-4 sm:p-8 shadow-2xl max-h-[90vh] overflow-y-auto border border-white/10">
                         <div className="flex items-center justify-between mb-4">
                             <h2 className="text-2xl font-black text-white">{t('payments.upload_title')}</h2>
                             <button onClick={closeModal} className="text-gray-400 hover:text-white transition" aria-label="Close">

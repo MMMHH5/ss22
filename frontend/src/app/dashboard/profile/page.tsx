@@ -400,11 +400,11 @@ function ProfileContent() {
 
     return (
         <ProtectedRoute>
-            <div className="max-w-5xl mx-auto space-y-6 animate-fade-in">
+            <div className="mx-auto w-full min-w-0 max-w-5xl space-y-5 sm:space-y-6 animate-fade-in">
 {error && <div className="p-4 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/20 bg-red-50 dark:bg-red-500/10 rounded-xl font-semibold">{error}</div>}
 
                 {loading || !profile ? (
-                    <div className="bg-white dark:bg-brand-navy-dark border border-gray-200 dark:border-white/5 p-16 rounded-3xl flex flex-col items-center gap-3 font-bold text-gray-500 dark:text-gray-400">
+                    <div className="bg-white dark:bg-brand-navy-dark border border-gray-200 dark:border-white/5 p-8 sm:p-16 rounded-2xl sm:rounded-3xl flex flex-col items-center gap-3 font-bold text-gray-500 dark:text-gray-400">
                         <div className="w-12 h-12 rounded-full border-4 border-gray-200 dark:border-white/10 border-t-brand-gold animate-spin" />
                         {t('profile.loading')}
                     </div>
@@ -416,7 +416,7 @@ function ProfileContent() {
                             <div className="absolute -top-16 -right-16 w-64 h-64 bg-brand-gold/20 rounded-full blur-3xl" />
                             <div className="absolute -bottom-20 -left-10 w-72 h-72 bg-brand-gold/10 rounded-full blur-3xl" />
                             <div className="absolute inset-0 opacity-[0.06]" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, #fff 1px, transparent 0)', backgroundSize: '22px 22px' }} />
-                            <div className="relative flex items-start gap-6 flex-wrap">
+                            <div className="relative flex items-start gap-4 sm:gap-6 flex-wrap">
                                 <div className="relative shrink-0">
                                     {meta.avatarUrl ? (
                                         // eslint-disable-next-line @next/next/no-img-element
@@ -456,7 +456,7 @@ function ProfileContent() {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-3 flex-wrap">
-                                        <h1 className="text-3xl lg:text-4xl font-black tracking-tight" dir="auto">{fullName}</h1>
+                                        <h1 className="break-words text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight" dir="auto">{fullName}</h1>
                                         {profile.isActive !== false && (
                                             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-400/15 text-emerald-300 text-xs font-black">
                                                 <BadgeCheck size={13} /> {t('profile.active')}

@@ -31,10 +31,10 @@ export default function MyGradesPage() {
 
     return (
         <ProtectedRoute allowedRoles={['STUDENT']}>
-            <div className="bg-white dark:bg-brand-navy-dark p-4 sm:p-6 lg:p-8 rounded-3xl shadow-sm border border-gray-200 dark:border-white/5 min-h-[80vh]">
-                <div className="mb-8">
-                    <h2 className="text-3xl font-black text-brand-navy dark:text-white flex items-center gap-3">
-                        <GraduationCap size={32} className="text-brand-gold-dark dark:text-brand-gold-light" /> {t('myGrades.heading')}
+            <div className="min-w-0 bg-white dark:bg-brand-navy-dark p-3 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl shadow-sm border border-gray-200 dark:border-white/5 min-h-[80vh]">
+                <div className="mb-6 sm:mb-8">
+                    <h2 className="text-2xl sm:text-3xl font-black text-brand-navy dark:text-white flex items-center gap-2 sm:gap-3">
+                        <GraduationCap size={26} className="shrink-0 text-brand-gold-dark dark:text-brand-gold-light sm:w-8 sm:h-8" /> {t('myGrades.heading')}
                     </h2>
                     <p className="text-gray-500 dark:text-gray-400 mt-2">{t('myGrades.subtitle')}</p>
                 </div>

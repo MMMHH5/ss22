@@ -286,17 +286,17 @@ export default function InstructorProfilePage() {
 
     const inputCls = 'w-full px-4 py-3 bg-brand-navy border border-white/10 rounded-xl text-white placeholder:text-gray-500 focus:ring-2 focus:ring-brand-gold/40 focus:border-brand-gold/40 outline-none transition';
     const labelCls = 'block text-sm font-bold text-gray-300 mb-1.5';
-    const cardCls = 'bg-brand-navy-dark border border-white/5 rounded-2xl p-6 lg:p-7';
+    const cardCls = 'bg-brand-navy-dark border border-white/5 rounded-2xl p-4 sm:p-6 lg:p-7';
     const sectionTitle = 'text-lg font-black text-white mb-1';
     const hintCls = 'text-sm text-gray-400 mb-5';
 
     return (
         <ProtectedRoute allowedRoles={['INSTRUCTOR', 'COURSE_MANAGER']}>
-            <div className="min-h-screen bg-gray-50 dark:bg-brand-navy space-y-6 animate-fade-in p-6 lg:p-8">
+            <div className="min-w-0 bg-gray-50 dark:bg-brand-navy space-y-5 sm:space-y-6 animate-fade-in p-3 sm:p-4 lg:p-8">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div>
-                        <h1 className="text-3xl font-black text-brand-navy dark:text-white tracking-tight flex items-center gap-3">
-                            <BadgeCheck className="text-brand-gold-dark dark:text-brand-gold-light" size={30} />
+                        <h1 className="text-2xl sm:text-3xl font-black text-brand-navy dark:text-white tracking-tight flex items-center gap-2 sm:gap-3">
+                            <BadgeCheck className="text-brand-gold-dark dark:text-brand-gold-light shrink-0" size={26} />
                             {t('instructorProfile.studio_title')}
                         </h1>
                         <p className="text-gray-600 dark:text-gray-400 text-sm mt-2 max-w-2xl">
@@ -307,7 +307,7 @@ export default function InstructorProfilePage() {
                         <Link
                             href={`/instructors/${profile.id}`}
                             target="_blank"
-                            className="inline-flex items-center gap-2 bg-white dark:bg-brand-navy border border-gray-200 dark:border-white/10 text-brand-navy dark:text-white font-bold text-sm px-5 py-2.5 rounded-xl hover:border-brand-gold/50 transition-all"
+                            className="inline-flex items-center gap-2 bg-white dark:bg-brand-navy border border-gray-200 dark:border-white/10 text-brand-navy dark:text-white font-bold text-sm px-4 sm:px-5 py-2.5 rounded-xl hover:border-brand-gold/50 transition-all"
                         >
                             <Eye size={16} /> {t('instructorProfile.view_public')}
                         </Link>
@@ -328,7 +328,7 @@ export default function InstructorProfilePage() {
                     </div>
                 )}
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+                <div className="grid min-w-0 grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 items-start">
                     {/* ================= EDIT ================= */}
                     <div className="lg:col-span-2 space-y-6">
                         {/* Photo — optional */}

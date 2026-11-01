@@ -156,11 +156,11 @@ export default function TeachingHubPage() {
 
     return (
         <ProtectedRoute allowedRoles={['INSTRUCTOR']}>
-            <div className="min-h-screen bg-gray-50 dark:bg-brand-navy-dark space-y-6 animate-fade-in p-6 lg:p-8">
+            <div className="min-w-0 bg-gray-50 dark:bg-brand-navy-dark space-y-5 sm:space-y-6 animate-fade-in p-3 sm:p-4 lg:p-8">
                 {/* Header */}
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div>
-                        <h1 className="text-3xl font-black text-white tracking-tight">
+                        <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight">
                             {isAr ? 'مركز التدريس' : 'Teaching Hub'}
                         </h1>
                         <p className="text-gray-400 text-sm mt-1">
@@ -176,39 +176,39 @@ export default function TeachingHubPage() {
                 {error && <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl">{error}</div>}
 
                 {/* Tab Navigation */}
-                <div className="inline-flex items-center gap-1 bg-brand-navy-dark border border-white/5 rounded-2xl p-1.5">
+                <div className="flex max-w-full items-center gap-1 bg-brand-navy-dark border border-white/5 rounded-2xl p-1.5 overflow-x-auto">
                     <Link href="/dashboard/teaching"
-                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 bg-brand-gold/10 text-brand-gold-light border border-brand-gold/20">
+                        className="inline-flex shrink-0 items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 bg-brand-gold/10 text-brand-gold-light border border-brand-gold/20">
                         <BookOpen size={16} /> {isAr ? 'الدورات المسندة' : 'My Openings'}
                     </Link>
                     <Link href="/dashboard/teaching/suggestions"
-                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 text-gray-400 hover:text-white hover:bg-white/5 border border-transparent">
+                        className="inline-flex shrink-0 items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 text-gray-400 hover:text-white hover:bg-white/5 border border-transparent">
                         <Lightbulb size={16} /> {isAr ? 'الاقتراحات' : 'Suggestions'}
                     </Link>
                 </div>
 
                 {/* Stats Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                     {[
                         { icon: BookOpen, label: isAr ? 'إجمالي الدورات' : 'Total Openings', value: openings?.length ?? 0, color: 'text-brand-navy-light', bg: 'bg-brand-navy-light/10' },
                         { icon: Users, label: isAr ? 'إجمالي الطلاب' : 'Total Students', value: totalStudents, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
                         { icon: ClipboardList, label: isAr ? 'إجمالي المهام' : 'Total Tasks', value: totalTasks, color: 'text-purple-400', bg: 'bg-purple-500/10' },
                         { icon: Clock, label: isAr ? 'طلبات معلقة' : 'Pending Requests', value: pendingRequests, color: 'text-brand-gold-light', bg: 'bg-brand-gold/10' },
                     ].map((s, i) => (
-                        <div key={i} className="bg-brand-navy-dark border border-white/5 rounded-2xl p-5 hover:border-white/10 transition-all">
+                        <div key={i} className="min-w-0 bg-brand-navy-dark border border-white/5 rounded-2xl p-3 sm:p-5 hover:border-white/10 transition-all">
                             <div className="flex items-center gap-3 mb-3">
-                                <div className={`w-10 h-10 rounded-xl ${s.bg} ${s.color} flex items-center justify-center`}>
-                                    <s.icon size={20} />
+                                <div className={`w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-xl ${s.bg} ${s.color} flex items-center justify-center`}>
+                                    <s.icon size={18} />
                                 </div>
-                                <p className="text-xs font-bold text-gray-400">{s.label}</p>
+                                <p className="text-[11px] sm:text-xs leading-snug font-bold text-gray-400">{s.label}</p>
                             </div>
-                            <p className="text-3xl font-black text-white">{s.value}</p>
+                            <p className="text-2xl sm:text-3xl font-black text-white">{s.value}</p>
                         </div>
                     ))}
                 </div>
 
                 {/* My Openings */}
-                <section className="bg-brand-navy-dark border border-white/5 rounded-2xl p-6 lg:p-8">
+                <section className="min-w-0 bg-brand-navy-dark border border-white/5 rounded-2xl p-4 sm:p-6 lg:p-8">
                     <div className="flex items-center justify-between mb-6">
                         <div>
                             <h3 className="text-lg font-black text-white flex items-center gap-2">

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Menu, X, LogOut } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useI18n } from '@/lib/i18n-context';
@@ -32,6 +32,22 @@ export default function MobileSidebar() {
     const pathname = usePathname();
     const [open, setOpen] = useState(false);
 
+    useEffect(() => {
+        if (!open) return;
+
+        const previousOverflow = document.body.style.overflow;
+        const closeOnEscape = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') setOpen(false);
+        };
+
+        document.body.style.overflow = 'hidden';
+        document.addEventListener('keydown', closeOnEscape);
+        return () => {
+            document.body.style.overflow = previousOverflow;
+            document.removeEventListener('keydown', closeOnEscape);
+        };
+    }, [open]);
+
     if (!user) return null;
 
     const roleKey = (user.role || '').toUpperCase();
@@ -49,7 +65,9 @@ export default function MobileSidebar() {
             <button
                 onClick={() => setOpen(true)}
                 className="lg:hidden p-2 text-ink hover:bg-ink/[0.06] rounded-xl transition"
-                aria-label="Menu"
+                aria-label="Open navigation menu"
+                aria-expanded={open}
+                aria-controls="mobile-navigation"
             >
                 <Menu size={24} />
             </button>
@@ -57,7 +75,7 @@ export default function MobileSidebar() {
             {open && createPortal(
                 <div className="fixed inset-0 z-50 lg:hidden">
                     <div className="fixed inset-0 bg-black/50" onClick={() => setOpen(false)} />
-                    <div className={`fixed top-0 bottom-0 start-0 w-[85%] max-w-xs overflow-y-auto shadow-2xl ${dark ? 'bg-surface-sunken text-ink' : 'bg-surface-raised text-ink'}`}>
+                    <div id="mobile-navigation" role="dialog" aria-modal="true" aria-label="Navigation menu" className={`fixed top-0 bottom-0 start-0 w-[min(85%,20rem)] overflow-y-auto overscroll-contain shadow-2xl ${dark ? 'bg-surface-sunken text-ink' : 'bg-surface-raised text-ink'}`}>
                         <div className={`flex items-center justify-between p-5 border-b ${'border-line'}`}>
                             <div className="flex items-center gap-3">
                                 <img

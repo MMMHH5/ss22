@@ -105,9 +105,9 @@ export default function MyCoursesPage() {
 
     return (
         <ProtectedRoute allowedRoles={['STUDENT']}>
-            <div className="bg-white dark:bg-brand-navy-dark p-8 rounded-3xl shadow-sm border border-gray-200 dark:border-white/5 min-h-[80vh]">
-                <div className="mb-8">
-                    <h2 className="text-3xl font-black text-brand-navy dark:text-white">{t('myCourses.heading')}</h2>
+            <div className="min-w-0 bg-white dark:bg-brand-navy-dark p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl shadow-sm border border-gray-200 dark:border-white/5 min-h-[80vh]">
+                <div className="mb-6 sm:mb-8">
+                    <h2 className="text-2xl sm:text-3xl font-black text-brand-navy dark:text-white">{t('myCourses.heading')}</h2>
                     <p className="text-gray-500 dark:text-gray-400 mt-2">{t('myCourses.subtitle')}</p>
                 </div>
 
@@ -139,13 +139,13 @@ export default function MyCoursesPage() {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {enrollments?.map((enrollment) => (
-                            <div key={enrollment.id} className="relative bg-brand-navy border border-white/5 rounded-3xl p-6 shadow-sm hover:shadow-xl transition-all duration-300">
+                            <div key={enrollment.id} className="relative min-w-0 bg-brand-navy border border-white/5 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-sm hover:shadow-xl transition-all duration-300">
                                 <div className="absolute -top-4 -right-4 w-24 h-24 bg-brand-gold/10 rounded-full blur-xl -z-10"></div>
 
                                 <div className="flex flex-wrap justify-between items-start mb-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-12 h-12 bg-brand-navy-dark rounded-2xl flex items-center justify-center text-brand-gold-light shadow-sm">
-                                            <BookOpen size={24} />
+                                    <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
+                                        <div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 bg-brand-navy-dark rounded-xl sm:rounded-2xl flex items-center justify-center text-brand-gold-light shadow-sm">
+                                            <BookOpen size={21} />
                                         </div>
                                         <div className="text-xs text-gray-400 font-semibold max-w-full min-w-0 truncate">
                                             {pick(enrollment.opening, 'name') && <span className="block text-white font-bold">{pick(enrollment.opening, 'name')}</span>}
@@ -168,7 +168,7 @@ export default function MyCoursesPage() {
                                     </span>
                                 </div>
 
-                                <h3 className="text-xl font-bold text-white mb-2 line-clamp-2">
+                                <h3 className="text-lg sm:text-xl font-bold text-white mb-2 line-clamp-2">
                                     <Link href={`/courses/${enrollment.course.id}`} className="hover:text-brand-gold-light transition-colors">
                                         {pick(enrollment.course, 'title')}
                                     </Link>

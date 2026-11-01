@@ -73,13 +73,13 @@ export default function SupportPage() {
 
     return (
         <ProtectedRoute>
-            <div className="space-y-6 animate-fade-in max-w-5xl">
+            <div className="min-w-0 space-y-5 sm:space-y-6 animate-fade-in max-w-5xl">
                 <PageHeader title={t('support.title')} subtitle={t('support.subtitle')} />
 
-                <div className="grid lg:grid-cols-2 gap-6">
+                <div className="grid min-w-0 lg:grid-cols-2 gap-4 sm:gap-6">
                     {/* New request form */}
-                    <div className="bg-white dark:bg-brand-navy-dark p-6 lg:p-8 rounded-3xl shadow-sm border border-gray-200 dark:border-white/5">
-                        <h3 className="text-xl font-black text-brand-navy dark:text-white mb-5 flex items-center gap-2">
+                    <div className="min-w-0 bg-white dark:bg-brand-navy-dark p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl shadow-sm border border-gray-200 dark:border-white/5">
+                        <h3 className="text-lg sm:text-xl font-black text-brand-navy dark:text-white mb-5 flex items-center gap-2">
                             <span className="admin-tile w-9 h-9 bg-brand-navy/5 dark:bg-white/5 text-brand-gold-dark dark:text-brand-gold-light"><LifeBuoy size={18} /></span>
                             {t('support.new_ticket_title')}
                         </h3>
@@ -104,8 +104,8 @@ export default function SupportPage() {
                     </div>
 
                     {/* My tickets */}
-                    <div className="bg-white dark:bg-brand-navy-dark p-6 lg:p-8 rounded-3xl shadow-sm border border-gray-200 dark:border-white/5">
-                        <h3 className="text-xl font-black text-brand-navy dark:text-white mb-5 flex items-center gap-2">
+                    <div className="min-w-0 bg-white dark:bg-brand-navy-dark p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl shadow-sm border border-gray-200 dark:border-white/5">
+                        <h3 className="text-lg sm:text-xl font-black text-brand-navy dark:text-white mb-5 flex items-center gap-2">
                             <span className="admin-tile w-9 h-9 bg-brand-navy/5 dark:bg-white/5 text-brand-gold-dark dark:text-brand-gold-light"><InboxIcon size={18} /></span>
                             {t('support.my_tickets')}
                         </h3>

@@ -10,7 +10,7 @@ import {
     ArrowLeft, Award, Loader, PanelLeftClose, PanelLeft, Search, ChevronDown,
     PlayCircle, FileText, ClipboardList, Link2, Clock, CheckCircle, Play, Pause,
     RotateCcw, Volume2, VolumeX, Maximize, ZoomIn, ZoomOut, Maximize2, Download,
-    UploadCloud, StickyNote, MessagesSquare, Send, X, Gift, BookMarked, MessageCircle, ArrowRight,
+    UploadCloud, StickyNote, MessagesSquare, Send, X, BookMarked, MessageCircle, ArrowRight,
     Bell, Megaphone, Calendar, User, AlertTriangle, Video, CalendarDays, Radio,
 } from 'lucide-react';
 import CourseChat from '@/components/CourseChat';
@@ -206,8 +206,18 @@ export default function CoursePlayer({ courseId }: Props) {
     // Announcements
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
     const [announcementsOpen, setAnnouncementsOpen] = useState(false);
+    const [currentTime, setCurrentTime] = useState<number | null>(null);
     // Quizzes for current module
     const [moduleQuizzes, setModuleQuizzes] = useState<ModuleQuiz[]>([]);
+
+    useEffect(() => {
+        const initialUpdate = setTimeout(() => setCurrentTime(Date.now()), 0);
+        const clock = setInterval(() => setCurrentTime(Date.now()), 60000);
+        return () => {
+            clearTimeout(initialUpdate);
+            clearInterval(clock);
+        };
+    }, []);
 
     // ---------- Data loading ----------
     useEffect(() => {
@@ -318,13 +328,13 @@ export default function CoursePlayer({ courseId }: Props) {
      * week with no session of its own.
      */
     const joinLink = useMemo(() => {
-        const now = Date.now();
+        if (currentTime === null) return progress?.meetLink || null;
         const next = (progress?.liveSessions || [])
             .map((s) => ({ s, at: new Date(s.scheduledAt).getTime() }))
-            .filter((r) => !Number.isNaN(r.at) && r.at + (r.s.durationMinutes ?? 0) * 60000 >= now)
+            .filter((r) => !Number.isNaN(r.at) && r.at + (r.s.durationMinutes ?? 0) * 60000 >= currentTime)
             .sort((a, b) => a.at - b.at)[0];
         return next?.s.meetLink || progress?.meetLink || null;
-    }, [progress]);
+    }, [currentTime, progress]);
 
     /**
      * Whether this course is taught live. Its lessons happen at the meeting, so
@@ -845,7 +855,7 @@ export default function CoursePlayer({ courseId }: Props) {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0 relative">
+                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 relative">
                     {joinLink && (
                         <a
                             href={joinLink}
@@ -866,14 +876,14 @@ export default function CoursePlayer({ courseId }: Props) {
                                 className="relative w-10 h-10 rounded-xl flex items-center justify-center bg-ink/[0.04] text-ink-on-gold hover:bg-ink/[0.08] hover:text-ink-on-gold transition-all duration-200 cursor-pointer"
                             >
                                 <Bell size={18} />
-                                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-brand-gold text-ink-on-gold text-[10px] font-black flex items-center justify-center">
+                                <span className="absolute -top-1 -end-1 w-5 h-5 rounded-full bg-brand-gold text-ink-on-gold text-[10px] font-black flex items-center justify-center">
                                     {announcements.length}
                                 </span>
                             </button>
                             {announcementsOpen && (
                                 <>
                                     <div className="fixed inset-0 z-40" onClick={() => setAnnouncementsOpen(false)} />
-                                    <div className="absolute top-12 right-0 z-50 w-[85vw] max-w-[380px] max-h-[420px] overflow-y-auto bg-surface border border-line rounded-2xl shadow-2xl shadow-black/40 admin-scroll">
+                                    <div className="fixed inset-x-3 top-16 z-50 max-h-[min(70vh,420px)] overflow-y-auto bg-surface border border-line rounded-2xl shadow-2xl shadow-black/40 admin-scroll sm:absolute sm:inset-x-auto sm:end-0 sm:top-12 sm:w-[min(85vw,380px)]">
                                         <div className="p-4 border-b border-line sticky top-0 bg-surface z-10">
                                             <div className="flex items-center gap-2">
                                                 <Megaphone size={16} className="text-ink-on-gold" />

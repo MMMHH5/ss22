@@ -113,7 +113,7 @@ export default function OpeningStudentsPage() {
 
     return (
         <ProtectedRoute allowedRoles={['INSTRUCTOR']}>
-            <div className="min-h-screen bg-gray-50 dark:bg-brand-navy-dark animate-fade-in space-y-6 p-6 lg:p-8">
+            <div className="min-w-0 animate-fade-in space-y-5 sm:space-y-6 p-3 sm:p-4">
                 <Link
                     href={`/dashboard/teaching/${oid}`}
                     className="inline-flex items-center gap-1.5 text-sm font-bold text-gray-400 hover:text-white transition"
@@ -135,26 +135,26 @@ export default function OpeningStudentsPage() {
                     <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl">{error}</div>
                 )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                     {[
                         { icon: Users, label: isAr ? 'إجمالي الطلاب' : 'Total Students', value: (roster?.enrollments || []).length, color: 'text-brand-navy-light', bg: 'bg-brand-navy-light/10' },
                         { icon: UserCheck, label: isAr ? 'مقبولون' : 'Approved', value: approvedCount, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
                         { icon: TrendingUp, label: isAr ? 'متوسط التقدم' : 'Avg Progress', value: avgProgress != null ? `${avgProgress}%` : '—', color: 'text-brand-gold-light', bg: 'bg-brand-gold/10' },
                     ].map((s, i) => (
-                        <div key={i} className="bg-brand-navy-dark border border-white/5 rounded-2xl p-5 hover:border-white/10 transition-all">
+                        <div key={i} className="min-w-0 bg-brand-navy-dark border border-white/5 rounded-2xl p-3 sm:p-5 hover:border-white/10 transition-all">
                             <div className="flex items-center gap-3 mb-3">
-                                <div className={`w-10 h-10 rounded-xl ${s.bg} ${s.color} flex items-center justify-center`}>
-                                    <s.icon size={20} />
+                                <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl ${s.bg} ${s.color} flex items-center justify-center shrink-0`}>
+                                    <s.icon size={18} />
                                 </div>
-                                <p className="text-xs font-bold text-gray-400">{s.label}</p>
+                                <p className="text-[11px] sm:text-xs font-bold leading-snug text-gray-400">{s.label}</p>
                             </div>
-                            <p className="text-3xl font-black text-white">{s.value}</p>
+                            <p className="text-2xl sm:text-3xl font-black text-white">{s.value}</p>
                         </div>
                     ))}
                 </div>
 
                 <section className="bg-brand-navy-dark border border-white/5 rounded-2xl overflow-hidden">
-                    <div className="flex flex-wrap items-center justify-between gap-4 p-5 border-b border-white/5">
+                    <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center justify-between gap-4 p-4 sm:p-5 border-b border-white/5">
                         <div>
                             <h3 className="text-lg font-black text-white flex items-center gap-2">
                                 <GraduationCap size={18} className="text-brand-gold-light" />
@@ -175,7 +175,49 @@ export default function OpeningStudentsPage() {
                         </div>
                     </div>
 
-                    <div className="overflow-x-auto">
+                    <div className="sm:hidden divide-y divide-white/5">
+                        {loading ? (
+                            <div className="p-10 text-center text-gray-400">
+                                <Loader className="animate-spin mx-auto mb-3" size={24} />
+                                {isAr ? 'جاري التحميل...' : 'Loading...'}
+                            </div>
+                        ) : rows.length === 0 ? (
+                            <div className="p-8 text-center text-sm font-semibold text-gray-400">
+                                {search.trim() ? (isAr ? 'لا يوجد طالب مطابق للبحث' : 'No students match your search') : (isAr ? 'لا يوجد طلاب مسجلون في هذه الدفعة بعد' : 'No students enrolled in this opening yet')}
+                            </div>
+                        ) : rows.map((r) => (
+                            <article key={r.id} className="min-w-0 space-y-3 p-4">
+                                <div className="flex min-w-0 items-start justify-between gap-3">
+                                    <div className="flex min-w-0 items-center gap-3">
+                                        <div className={`w-9 h-9 rounded-full ${avatarToneFor(r.student.email)} flex items-center justify-center font-black text-sm shrink-0`}>
+                                            {r.student.email.charAt(0).toUpperCase()}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="break-all font-bold text-white">{r.student.email}</p>
+                                            {r.student.name && <p className="text-xs text-gray-500 truncate">{r.student.name}</p>}
+                                        </div>
+                                    </div>
+                                    <Badge tone={statusTone[r.status] ?? 'gray'}>
+                                        {isAr ? (statusLabelAr[r.status] ?? r.status) : (statusLabelEn[r.status] ?? r.status)}
+                                    </Badge>
+                                </div>
+                                <div className="flex items-center justify-between gap-3 text-xs">
+                                    <span className="text-gray-400">{isAr ? 'تاريخ الانضمام' : 'Join date'}</span>
+                                    <span className="text-gray-300 font-semibold">{fmtDate(r.createdAt)}</span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <span className="shrink-0 text-xs text-gray-400">{isAr ? 'التقدم' : 'Progress'}</span>
+                                    <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                        <div className="h-full bg-gradient-to-r from-brand-gold to-brand-gold-light rounded-full transition-all duration-500" style={{ width: `${r.progress ?? 0}%` }} />
+                                    </div>
+                                    <span className={`text-xs font-black ${r.progress != null ? 'text-white' : 'text-gray-600'}`}>
+                                        {r.progress != null ? `${r.progress}%` : '—'}
+                                    </span>
+                                </div>
+                            </article>
+                        ))}
+                    </div>
+                    <div className="hidden sm:block overflow-x-auto">
                         <table className="w-full text-sm min-w-[720px]">
                             <thead>
                                 <tr className="text-xs uppercase tracking-wide text-gray-500 bg-white/[0.03] border-b border-white/5">

@@ -177,7 +177,7 @@ export default function TeachingWorkspacePage() {
 
     return (
         <ProtectedRoute allowedRoles={['INSTRUCTOR']}>
-            <div className="bg-gray-50 dark:bg-brand-navy-dark animate-fade-in space-y-6 p-4 lg:p-8">
+            <div className="min-w-0 bg-gray-50 dark:bg-brand-navy-dark animate-fade-in space-y-5 sm:space-y-6 p-2 sm:p-4 lg:p-8">
                 <Link
                     href="/dashboard/teaching"
                     className="inline-flex items-center gap-1.5 text-sm font-bold text-gray-400 hover:text-white transition mb-2"
@@ -188,7 +188,7 @@ export default function TeachingWorkspacePage() {
                 <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
                         <div className="flex items-center gap-3 flex-wrap">
-                            <h2 className="text-2xl font-black text-white tracking-tight">
+                            <h2 className="min-w-0 break-words text-xl sm:text-2xl font-black text-white tracking-tight">
                                 {pick(opening, 'name') || t('manageCourses.opening_default')}
                             </h2>
                             {opening && statusBadge(opening.status)}
@@ -214,7 +214,7 @@ export default function TeachingWorkspacePage() {
                     {statPill(<Hash size={16} />, statusLabel, isAr ? 'الحالة' : 'Status')}
                 </div>
 
-                <div className="inline-flex items-center gap-1 bg-brand-navy-dark border border-white/5 rounded-2xl p-1.5 overflow-x-auto max-w-full">
+                <div className="flex w-full items-center gap-1 bg-brand-navy-dark border border-white/5 rounded-2xl p-1.5 overflow-x-auto">
                     {availableTabs.includes('roster') && tabBtn('roster', <Settings2 size={16} />, isAr ? 'الطلاب والدرجات' : 'Roster')}
                     {availableTabs.includes('tasks') && tabBtn('tasks', <ClipboardList size={16} />, t('tasks.tasks_title'))}
                     {availableTabs.includes('announcements') && tabBtn('announcements', <Megaphone size={16} />, isAr ? 'الإعلانات' : 'Announcements')}
@@ -237,7 +237,7 @@ export default function TeachingWorkspacePage() {
                 )}
                 {tab === 'announcements' && !!openingId && <InstructorAnnouncements openingId={String(openingId)} />}
                 {tab === 'calendar' && !!openingId && (
-                    <div className="bg-brand-navy-dark border border-white/5 rounded-2xl p-6">
+                    <div className="bg-brand-navy-dark border border-white/5 rounded-2xl p-4 sm:p-6">
                         <AcademicCalendar openingId={String(openingId)} />
                     </div>
                 )}
@@ -261,46 +261,46 @@ export default function TeachingWorkspacePage() {
                     </div>
                 )}
                 {tab === 'analytics' && opening && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="bg-brand-navy-dark border border-white/5 rounded-2xl p-6">
+                    <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                        <div className="min-w-0 bg-brand-navy-dark border border-white/5 rounded-2xl p-3 sm:p-6">
                             <div className="flex items-center gap-3 mb-3">
                                 <div className="w-10 h-10 rounded-xl bg-brand-gold/10 flex items-center justify-center">
                                     <Users size={20} className="text-brand-gold-light" />
                                 </div>
-                                <p className="text-gray-400 text-sm font-bold">{isAr ? 'إجمالي الطلاب' : 'Total Students'}</p>
+                                <p className="text-gray-400 text-xs sm:text-sm font-bold">{isAr ? 'إجمالي الطلاب' : 'Total Students'}</p>
                             </div>
-                            <p className="text-3xl font-black text-white">{openingReport?.approvedStudentCount ?? '—'}</p>
+                            <p className="text-2xl sm:text-3xl font-black text-white">{openingReport?.approvedStudentCount ?? '—'}</p>
                         </div>
-                        <div className="bg-brand-navy-dark border border-white/5 rounded-2xl p-6">
+                        <div className="min-w-0 bg-brand-navy-dark border border-white/5 rounded-2xl p-3 sm:p-6">
                             <div className="flex items-center gap-3 mb-3">
                                 <div className="w-10 h-10 rounded-xl bg-brand-gold/10 flex items-center justify-center">
                                     <ClipboardList size={20} className="text-brand-gold-light" />
                                 </div>
-                                <p className="text-gray-400 text-sm font-bold">{isAr ? 'نسبة الحضور' : 'Attendance rate'}</p>
+                                <p className="text-gray-400 text-xs sm:text-sm font-bold">{isAr ? 'نسبة الحضور' : 'Attendance rate'}</p>
                             </div>
-                            <p className="text-3xl font-black text-white">
+                            <p className="text-2xl sm:text-3xl font-black text-white">
                                 {openingReport?.attendanceRate == null ? '—' : `${openingReport.attendanceRate}%`}
                             </p>
                         </div>
-                        <div className="bg-brand-navy-dark border border-white/5 rounded-2xl p-6">
+                        <div className="min-w-0 bg-brand-navy-dark border border-white/5 rounded-2xl p-3 sm:p-6">
                             <div className="flex items-center gap-3 mb-3">
                                 <div className="w-10 h-10 rounded-xl bg-brand-gold/10 flex items-center justify-center">
                                     <BookOpen size={20} className="text-brand-gold-light" />
                                 </div>
-                                <p className="text-gray-400 text-sm font-bold">{isAr ? 'تسليم الواجبات' : 'Task submissions'}</p>
+                                <p className="text-gray-400 text-xs sm:text-sm font-bold">{isAr ? 'تسليم الواجبات' : 'Task submissions'}</p>
                             </div>
-                            <p className="text-3xl font-black text-white">
+                            <p className="text-2xl sm:text-3xl font-black text-white">
                                 {openingReport?.taskSubmissionRate == null ? '—' : `${openingReport.taskSubmissionRate}%`}
                             </p>
                         </div>
-                        <div className="bg-brand-navy-dark border border-white/5 rounded-2xl p-6">
+                        <div className="min-w-0 bg-brand-navy-dark border border-white/5 rounded-2xl p-3 sm:p-6">
                             <div className="flex items-center gap-3 mb-3">
                                 <div className="w-10 h-10 rounded-xl bg-brand-gold/10 flex items-center justify-center">
                                     <Hash size={20} className="text-brand-gold-light" />
                                 </div>
-                                <p className="text-gray-400 text-sm font-bold">{isAr ? 'يحتاجون متابعة' : 'Need follow-up'}</p>
+                                <p className="text-gray-400 text-xs sm:text-sm font-bold">{isAr ? 'يحتاجون متابعة' : 'Need follow-up'}</p>
                             </div>
-                            <p className="text-3xl font-black text-white">{openingReport?.needsFollowUpCount ?? '—'}</p>
+                            <p className="text-2xl sm:text-3xl font-black text-white">{openingReport?.needsFollowUpCount ?? '—'}</p>
                         </div>
                     </div>
                 )}

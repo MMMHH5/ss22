@@ -69,17 +69,17 @@ export default function DashboardPage() {
     }
 
     return (
-        <div className="max-w-6xl mx-auto space-y-6">
+        <div className="mx-auto w-full min-w-0 max-w-6xl space-y-5 sm:space-y-6">
             {/* Welcome Banner */}
-            <div className="relative overflow-hidden bg-gradient-to-br from-brand-navy via-brand-navy-light to-brand-navy rounded-3xl p-4 sm:p-6 lg:p-8 text-white shadow-lg shadow-black/20 animate-fade-in">
+            <div className="relative min-w-0 overflow-hidden bg-gradient-to-br from-brand-navy via-brand-navy-light to-brand-navy rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 text-white shadow-lg shadow-black/20 animate-fade-in">
                 <div className="absolute -top-16 -right-16 w-64 h-64 bg-brand-gold/10 rounded-full blur-3xl" />
                 <div className="absolute -bottom-20 -left-10 w-72 h-72 bg-brand-gold/5 rounded-full blur-3xl" />
                 <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-brand-gold via-brand-gold/40 to-transparent" />
-                <div className="relative">
-                    <h1 className="text-3xl lg:text-4xl font-black tracking-tight">
+                <div className="relative min-w-0">
+                    <h1 className="break-words text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight leading-tight">
                         {t('dashboard.welcome_back')}, {displayName}
                     </h1>
-                    <p className="text-gray-400 mt-2 font-semibold">
+                    <p className="break-words text-sm sm:text-base text-gray-400 mt-2 font-semibold">
                         {t('dashboard.secure_login')}{' '}
                         <span className="font-black text-brand-gold-light">{roleLabel}</span>{' '}
                         {t('dashboard.permissions')}
@@ -87,14 +87,13 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            {/* Announcement Banner — full width */}
-            <div className="mx-[calc(50%-50vw)] w-screen">
+            <div className="min-w-0">
                 <AnnouncementBanner variant="dashboard" />
             </div>
 
             {/* Metrics Row */}
             {!isInstructor && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-in-up">
+                <div className="grid min-w-0 grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 animate-fade-in-up">
                     {metrics.map((m) => (
                         <StatCard key={m.label} icon={m.icon} color={m.color} value={m.value} label={m.label} accent />
                     ))}
@@ -112,7 +111,7 @@ export default function DashboardPage() {
             {user.role === 'STUDENT' && (
                 <div className="animate-fade-in-up">
                     <h3 className="text-xl font-black text-brand-navy dark:text-white mb-4">{t('dashboard.quick_actions')}</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="grid min-w-0 grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                         <Link href="/dashboard/explore" className="group bg-brand-navy-dark border border-white/5 rounded-2xl p-6 hover:border-brand-gold/20 hover:shadow-xl hover:-translate-y-0.5 transition-all">
                             <div className="w-12 h-12 rounded-2xl bg-brand-gold/10 text-brand-gold-light flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                                 <Compass size={24} />

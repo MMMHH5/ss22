@@ -133,11 +133,11 @@ export default function NotificationsPage() {
 
     return (
         <ProtectedRoute allowedRoles={['STUDENT', 'INSTRUCTOR', 'COURSE_MANAGER', 'FINANCE', 'ADMIN']}>
-            <div className="bg-white dark:bg-brand-navy-dark p-4 sm:p-6 lg:p-8 rounded-3xl shadow-sm border border-gray-200 dark:border-white/5 min-h-[80vh]">
-                <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
+            <div className="min-w-0 bg-white dark:bg-brand-navy-dark p-3 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl shadow-sm border border-gray-200 dark:border-white/5 min-h-[80vh]">
+                <div className="mb-6 sm:mb-8 flex items-start justify-between gap-3 sm:gap-4 flex-wrap">
                     <div>
-                        <h2 className="text-3xl font-black text-brand-navy dark:text-white flex items-center gap-3">
-                            <Bell size={32} className="text-brand-gold-dark dark:text-brand-gold-light" /> {t('notifications.heading')}
+                        <h2 className="text-2xl sm:text-3xl font-black text-brand-navy dark:text-white flex items-center gap-2 sm:gap-3">
+                            <Bell size={26} className="shrink-0 text-brand-gold-dark dark:text-brand-gold-light sm:w-8 sm:h-8" /> {t('notifications.heading')}
                         </h2>
                         <p className="text-gray-500 dark:text-gray-400 mt-2">{t('notifications.subtitle')}</p>
                     </div>
@@ -149,8 +149,8 @@ export default function NotificationsPage() {
                 </div>
 
                 {user?.role === 'STUDENT' || user?.role === 'INSTRUCTOR' ? (
-                    <section className="mb-8 rounded-2xl border border-white/10 bg-brand-navy-dark p-5" aria-labelledby="notification-preferences-heading">
-                        <div className="mb-4 flex items-center gap-3">
+                    <section className="mb-6 sm:mb-8 rounded-2xl border border-white/10 bg-brand-navy-dark p-4 sm:p-5" aria-labelledby="notification-preferences-heading">
+                        <div className="mb-4 flex items-center gap-2 sm:gap-3">
                             <Settings2 size={20} className="text-brand-gold-light" />
                             <h3 id="notification-preferences-heading" className="font-black text-white">
                                 {t('notifications.preferences_heading')}
@@ -200,7 +200,7 @@ export default function NotificationsPage() {
                             const href = actionHref(n);
                             const content = (
                                 <>
-                                    <div className="flex items-start justify-between gap-3">
+                                    <div className="flex flex-col-reverse items-start justify-between gap-2 sm:flex-row sm:gap-3">
                                         <div className="flex items-center gap-2 flex-wrap">
                                             <span className="text-[11px] font-black uppercase tracking-wider text-gray-400 bg-white/5 px-2.5 py-0.5 rounded-full">
                                                 {n.type}
@@ -220,7 +220,7 @@ export default function NotificationsPage() {
                                     )}
                                 </>
                             );
-                            const className = `w-full text-left p-5 rounded-2xl border transition ${
+                            const className = `w-full min-w-0 text-left p-3 sm:p-5 rounded-2xl border transition ${
                                     n.readAt
                                         ? 'bg-brand-navy border-gray-200 dark:border-white/5 opacity-75'
                                         : 'bg-brand-navy-dark border-brand-gold/30 hover:border-brand-gold/60'

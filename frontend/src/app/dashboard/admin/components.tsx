@@ -66,14 +66,14 @@ export function StatCard({
     accent?: boolean;
 }) {
     const inner = (
-        <div className={`bg-white dark:bg-brand-navy-dark border border-gray-200 dark:border-white/5 rounded-2xl p-5 h-full ${accent ? 'shadow-lg shadow-brand-navy/10 dark:shadow-black/20' : 'shadow-sm'}`}>
+        <div className={`bg-white dark:bg-brand-navy-dark border border-gray-200 dark:border-white/5 rounded-2xl p-3 sm:p-5 h-full ${accent ? 'shadow-lg shadow-brand-navy/10 dark:shadow-black/20' : 'shadow-sm'}`}>
             <div className="flex items-center justify-between mb-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${tileColors[color]}`}>
-                    <Icon size={20} />
+                <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center ${tileColors[color]}`}>
+                    <Icon size={20} className="w-[18px] h-[18px] sm:w-5 sm:h-5" />
                 </div>
             </div>
-            <div className="text-2xl font-black text-brand-navy dark:text-white">{value}</div>
-            <div className="text-xs font-bold text-gray-500 dark:text-gray-400 mt-1.5">{label}</div>
+            <div className="text-xl sm:text-2xl font-black text-brand-navy dark:text-white">{value}</div>
+            <div className="text-[11px] sm:text-xs font-bold text-gray-500 dark:text-gray-400 mt-1.5 leading-snug">{label}</div>
         </div>
     );
     return href ? <Link href={href} className="block h-full">{inner}</Link> : inner;

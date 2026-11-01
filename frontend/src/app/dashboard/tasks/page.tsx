@@ -36,14 +36,14 @@ export default function TasksPage() {
     return (
         <ProtectedRoute allowedRoles={['STUDENT']}>
             <div className="animate-fade-in space-y-6">
-                <div className="bg-white dark:bg-brand-navy-dark p-8 rounded-3xl shadow-sm border border-gray-200 dark:border-white/5">
-                    <h2 className="text-3xl font-black text-brand-navy dark:text-white flex items-center gap-3">
-                        <ClipboardList size={26} className="text-brand-gold-dark dark:text-brand-gold-light" /> {t('tasks.teacher_heading')}
+                <div className="bg-white dark:bg-brand-navy-dark p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl shadow-sm border border-gray-200 dark:border-white/5">
+                    <h2 className="flex min-w-0 items-center gap-2 sm:gap-3 text-2xl sm:text-3xl font-black text-brand-navy dark:text-white">
+                        <ClipboardList size={24} className="shrink-0 text-brand-gold-dark dark:text-brand-gold-light" /> {t('tasks.teacher_heading')}
                     </h2>
                     <p className="text-gray-500 dark:text-gray-400 mt-2">{t('tasks.teacher_subtitle')}</p>
                 </div>
 
-                <div className="bg-white dark:bg-brand-navy-dark p-6 lg:p-8 rounded-3xl shadow-sm border border-gray-200 dark:border-white/5">
+                <div className="bg-white dark:bg-brand-navy-dark p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl shadow-sm border border-gray-200 dark:border-white/5">
                     <div className="max-w-xl mb-6">
                         <label htmlFor="task-opening" className="block text-sm font-bold text-gray-600 dark:text-gray-300 mb-1.5">
                             {t('tasks.select_opening')} *

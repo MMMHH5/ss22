@@ -86,14 +86,14 @@ export default function SuggestionsPage() {
 
     return (
         <ProtectedRoute allowedRoles={['INSTRUCTOR']}>
-            <div className="min-h-screen bg-gray-50 dark:bg-brand-navy-dark space-y-6 animate-fade-in p-6 lg:p-8">
+            <div className="min-w-0 bg-gray-50 dark:bg-brand-navy-dark space-y-5 sm:space-y-6 animate-fade-in p-3 sm:p-4 lg:p-8">
                 {/* Tab Navigation */}
-                <div className="flex gap-1 bg-brand-navy-dark border border-white/5 rounded-xl p-1 w-fit">
+                <div className="flex max-w-full gap-1 bg-brand-navy-dark border border-white/5 rounded-xl p-1 overflow-x-auto">
                     <Link href="/dashboard/teaching"
-                        className="px-4 py-2 rounded-lg text-sm font-bold transition-all text-gray-400 hover:text-white">
+                        className="shrink-0 px-4 py-2 rounded-lg text-sm font-bold transition-all text-gray-400 hover:text-white">
                         {isAr ? 'الدورات المسندة' : 'My Openings'}
                     </Link>
-                    <span className="px-4 py-2 rounded-lg text-sm font-bold transition-all bg-brand-gold/10 text-brand-gold-light">
+                    <span className="shrink-0 px-4 py-2 rounded-lg text-sm font-bold transition-all bg-brand-gold/10 text-brand-gold-light">
                         {isAr ? 'الاقتراحات' : 'Suggestions'}
                     </span>
                 </div>
@@ -101,8 +101,8 @@ export default function SuggestionsPage() {
                 {/* Header */}
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div>
-                        <h1 className="text-3xl font-black text-white tracking-tight flex items-center gap-2">
-                            <Lightbulb size={28} className="text-brand-gold-light" />
+                        <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-2">
+                            <Lightbulb size={24} className="shrink-0 text-brand-gold-light" />
                             {isAr ? 'الاقتراحات' : 'Suggestions'}
                         </h1>
                         <p className="text-gray-400 text-sm mt-1">
@@ -118,31 +118,58 @@ export default function SuggestionsPage() {
                 {error && <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl">{error}</div>}
 
                 {/* Stats Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                     {[
                         { icon: ClipboardList, label: isAr ? 'إجمالي الاقتراحات' : 'Total Suggestions', value: totalSuggestions, color: 'text-brand-navy-light', bg: 'bg-brand-navy-light/10' },
                         { icon: Clock, label: isAr ? 'اقتراحات معلقة' : 'Pending Suggestions', value: pendingSuggestions, color: 'text-brand-gold-light', bg: 'bg-brand-gold/10' },
                     ].map((s, i) => (
-                        <div key={i} className="bg-brand-navy-dark border border-white/5 rounded-2xl p-5 hover:border-white/10 transition-all">
+                        <div key={i} className="min-w-0 bg-brand-navy-dark border border-white/5 rounded-2xl p-3 sm:p-5 hover:border-white/10 transition-all">
                             <div className="flex items-center gap-3 mb-3">
-                                <div className={`w-10 h-10 rounded-xl ${s.bg} ${s.color} flex items-center justify-center`}>
-                                    <s.icon size={20} />
+                                <div className={`w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-xl ${s.bg} ${s.color} flex items-center justify-center`}>
+                                    <s.icon size={18} />
                                 </div>
-                                <p className="text-xs font-bold text-gray-400">{s.label}</p>
+                                <p className="text-[11px] sm:text-xs leading-snug font-bold text-gray-400">{s.label}</p>
                             </div>
-                            <p className="text-3xl font-black text-white">{s.value}</p>
+                            <p className="text-2xl sm:text-3xl font-black text-white">{s.value}</p>
                         </div>
                     ))}
                 </div>
 
                 {/* Suggestions Table */}
-                <section className="bg-brand-navy-dark border border-white/5 rounded-2xl p-6 lg:p-8">
+                <section className="min-w-0 bg-brand-navy-dark border border-white/5 rounded-2xl p-4 sm:p-6 lg:p-8">
                     <div className="flex items-center gap-2 mb-6">
                         <Lightbulb size={18} className="text-brand-gold-light" />
                         <h3 className="text-lg font-black text-white">{isAr ? 'اقتراحاتي' : 'My Suggestions'}</h3>
                     </div>
 
-                    <div className="overflow-x-auto">
+                    <div className="sm:hidden divide-y divide-white/5">
+                        {loading ? (
+                            <div className="h-40 flex items-center justify-center text-gray-400">
+                                <Loader className="animate-spin me-2" size={20} /> {isAr ? 'جاري التحميل...' : 'Loading...'}
+                            </div>
+                        ) : (suggestions || []).length === 0 ? (
+                            <div className="text-center py-10 text-gray-400">
+                                <Lightbulb size={36} className="mx-auto mb-3 text-gray-500" />
+                                <p className="font-bold">{isAr ? 'لا توجد اقتراحات بعد' : 'No suggestions yet'}</p>
+                            </div>
+                        ) : (suggestions || []).map((r) => (
+                            <article key={r.id} className="space-y-2.5 py-4">
+                                <h4 className="break-words font-bold text-white">{pick(r, 'title') || '—'}</h4>
+                                <div className="flex items-center justify-between gap-3 text-sm">
+                                    <span className="text-gray-500">{isAr ? 'الفئة' : 'Category'}</span>
+                                    <span className="min-w-0 break-words text-end text-gray-300">{pick(r, 'category') || '—'}</span>
+                                </div>
+                                <div className="flex items-center justify-between gap-3 text-sm">
+                                    <span className="text-gray-500">{isAr ? 'التاريخ' : 'Date'}</span>
+                                    <span className="text-gray-300">{new Date(r.createdAt).toLocaleDateString()}</span>
+                                </div>
+                                <span className={`inline-flex px-2.5 py-1 text-[10px] font-bold rounded-full ${statusColors[r.status] ?? ''}`}>
+                                    {isAr ? (statusLabels[r.status] ?? r.status) : (statusLabelsEn[r.status] ?? r.status)}
+                                </span>
+                            </article>
+                        ))}
+                    </div>
+                    <div className="hidden sm:block overflow-x-auto">
                         {loading ? (
                             <div className="h-40 flex items-center justify-center text-gray-400"><Loader className="animate-spin me-2" size={20} /> {isAr ? 'جاري التحميل...' : 'Loading...'}</div>
                         ) : (suggestions || []).length === 0 ? (
