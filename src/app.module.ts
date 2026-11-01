@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard, ThrottlerStorage } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 
 import { RedisThrottlerStorage } from './common/redis-throttler.storage';
 import { UserCacheModule } from './common/user-cache.module';
@@ -46,6 +47,7 @@ import { OperationsModule } from './operations/operations.module';
 
 @Module({
     imports: [
+        ScheduleModule.forRoot(),
         ThrottlerModule.forRoot([{
             ttl: 60000,
             limit: 300, // Increased to 300 requests per minute to support SPA navigation

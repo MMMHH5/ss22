@@ -1812,7 +1812,13 @@
         "subtitle": "All your alerts and updates in one place.",
         "mark_all": "Mark all as read",
         "empty": "You have no notifications yet.",
-        "fail": "Failed to update notification."
+        "fail": "Failed to update notification.",
+        "preferences_heading": "Reminder preferences",
+        "task_reminders": "Assignment deadline reminders",
+        "session_reminders": "Upcoming session reminders",
+        "instructor_follow_up": "Daily batch follow-up summary",
+        "preferences_loading": "Loading preferences...",
+        "preferences_fail": "Could not load or save notification preferences."
     },
     "lessons": {
         "outline_heading": "Course Outline",

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import StudentTasksPanel from '@/components/StudentTasksPanel';
 import { useFetchData } from '@/lib/useFetchData';
@@ -20,8 +21,10 @@ interface Enrollment {
 
 export default function TasksPage() {
     const { t, pick } = useI18n();
+    const searchParams = useSearchParams();
     const { data: enrollments, loading, error } = useFetchData<Enrollment[]>('/enrollments/my');
-    const [selectedOpeningId, setSelectedOpeningId] = useState('');
+    const requestedOpeningId = searchParams.get('openingId') ?? '';
+    const [selectedOpeningId, setSelectedOpeningId] = useState(requestedOpeningId);
     const openings = Array.from(new Map(
         (enrollments || [])
             .filter((enrollment) => enrollment.opening?.id && enrollment.status !== 'REJECTED')

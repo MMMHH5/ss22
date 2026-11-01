@@ -41,6 +41,19 @@ authenticated download routes; R2 itself is not exposed as a public bucket.
 5. After the deploy completes, test both frontend URLs and each API's
    `/health` endpoint. Check the API logs for successful database migrations.
 
+### Automated learning notifications
+
+The API runs a daily reminder job at 08:00 `Asia/Riyadh` and catches up student
+reminders when an API instance starts. It creates in-app notifications for
+approved students with tasks due or live sessions scheduled within the next
+24 hours, and sends instructors a daily count of ungraded submissions and
+absences recorded during the previous 24 hours. Notifications are deduplicated
+in PostgreSQL, so running the job on both API services does not send duplicate
+reminders. Students can turn task and session reminders off, and instructors can
+turn the daily follow-up summary off, from the notifications page. New accounts
+and users without saved preferences receive all applicable reminder types. No
+email is sent by this job.
+
 The Blueprint uses absolute public `onrender.com` URLs for frontend API
 requests, site metadata, and backend CORS origins. Do not replace these with
 Render's short internal service hostnames in browser-facing variables. If you

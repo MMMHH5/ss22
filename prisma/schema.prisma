@@ -176,6 +176,7 @@ model User {
   passwordResetTokens       PasswordResetToken[]
   emailVerificationTokens   EmailVerificationToken[]
   notifications             Notification[]
+  notificationPreferences   NotificationPreference?
   payments                  Payment[]
   wishlist                  Wishlist[]
   reviews                   CourseReview[]
@@ -1072,6 +1073,7 @@ model Notification {
   bodyAr    String?
   bodyEn    String?
   data      Json?
+  dedupeKey String?   @unique
   readAt    DateTime?
   createdAt DateTime  @default(now())
 
@@ -1080,6 +1082,15 @@ model Notification {
 
   @@index([userId])
   @@index([userId, readAt])
+}
+
+model NotificationPreference {
+  userId                    String   @id
+  taskRemindersEnabled      Boolean  @default(true)
+  sessionRemindersEnabled   Boolean  @default(true)
+  instructorFollowUpEnabled Boolean  @default(true)
+  user                      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  updatedAt                 DateTime @updatedAt
 }
 
 // ===== Commerce: currencies, payments, coupons =====
