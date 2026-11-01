@@ -41,7 +41,7 @@ export class AuthController {
 
     @ApiOperation({ summary: 'Complete two-factor sign in with a verification code' })
     @HttpCode(HttpStatus.OK)
-    @Throttle({ default: { limit: 3, ttl: 900000 } }) // 3 OTP attempts per 15 min (anti brute-force)
+    @Throttle({ default: { limit: 10, ttl: 900000 } }) // 10 OTP attempts per 15 min (anti brute-force)
     @Post('2fa/verify-login')
     async verifyTwoFactor(@Body('tempToken') tempToken: string, @Body('code') code: string) {
         return this.authService.verify2FALogin(tempToken, code);
