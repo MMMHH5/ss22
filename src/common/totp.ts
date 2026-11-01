@@ -8,7 +8,11 @@ import { verify as verifyOtp } from 'otplib';
  * is the single place that does, so a future otplib change cannot silently
  * reopen the hole.
  */
-export async function verifyTotp(token: string, secret: string): Promise<boolean> {
-    const result = await verifyOtp({ token, secret });
+export async function verifyTotp(
+    token: string,
+    secret: string,
+    epoch = Date.now() / 1000,
+): Promise<boolean> {
+    const result = await verifyOtp({ token, secret, epoch, epochTolerance: 30 });
     return result?.valid === true;
 }
