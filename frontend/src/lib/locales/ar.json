@@ -355,6 +355,7 @@
     },
     "dashboard": {
         "welcome_back": "مرحباً بعودتك",
+        "student_welcome_subtitle": "إليك ما ينتظرك في رحلتك التعليمية اليوم.",
         "engineer_label": "المهندس",
         "engineer_label_female": "المهندسة",
         "secure_login": "تم تسجيل دخولك بأمان بصفتك",
@@ -373,6 +374,29 @@
         "my_courses_desc": "إدارة تسجيلاتك",
         "my_grades_desc": "راجع نتائجك",
         "support_desc": "تواصل مع الدعم"
+    },
+    "studentHome": {
+        "heading": "ملخص تعلمك",
+        "load_failed": "تعذر تحميل ملخص لوحة الطالب.",
+        "retry": "إعادة المحاولة",
+        "active_courses": "الدورات النشطة",
+        "tasks_to_do": "مهام بانتظارك",
+        "overdue_tasks": "مهام متأخرة",
+        "waiting_grades": "بانتظار التصحيح",
+        "tasks_heading": "المهام التي تحتاج إنجازاً",
+        "tasks_subtitle": "أقرب مواعيد التسليم أولاً",
+        "view_all": "عرض الكل",
+        "no_pending_tasks": "رائع! لا توجد مهام غير مسلّمة.",
+        "no_deadline": "لا يوجد موعد تسليم محدد",
+        "sessions_heading": "الجلسات القادمة",
+        "sessions_subtitle": "مواعيد الفصول المباشرة",
+        "no_sessions": "لا توجد جلسات قادمة حالياً.",
+        "continue_learning": "تابع التعلم",
+        "continue_subtitle": "استأنف تقدمك في دوراتك النشطة",
+        "no_active_courses": "لا توجد لديك دورات نشطة حالياً.",
+        "explore": "استكشف الدورات",
+        "progress": "التقدم",
+        "progress_unavailable": "مؤشر التقدم غير متاح لهذه الدورة."
     },
     "gdpr": {
         "heading": "الخصوصية وحقوق البيانات",

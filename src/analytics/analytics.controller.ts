@@ -39,6 +39,13 @@ export class AnalyticsController {
         return this.svc.getStudentAnalytics(req.user.userId);
     }
 
+    @ApiOperation({ summary: "Get the student's actionable dashboard overview" })
+    @Roles(Role.STUDENT)
+    @Get('student-dashboard')
+    getStudentDashboard(@Request() req: any) {
+        return this.svc.getStudentDashboard(req.user.userId);
+    }
+
     @ApiOperation({ summary: 'Get own analytics for a course' })
     @Roles(Role.STUDENT)
     @Get('me/course/:courseId')

@@ -355,6 +355,7 @@
     },
     "dashboard": {
         "welcome_back": "Welcome back",
+        "student_welcome_subtitle": "Here is what needs your attention in your learning today.",
         "engineer_label": "Engineer",
         "engineer_label_female": "Engineer",
         "secure_login": "You are logged in securely with",
@@ -373,6 +374,29 @@
         "my_courses_desc": "Manage your enrollments",
         "my_grades_desc": "Review your scores",
         "support_desc": "Contact support"
+    },
+    "studentHome": {
+        "heading": "Your learning overview",
+        "load_failed": "Could not load your student dashboard overview.",
+        "retry": "Try again",
+        "active_courses": "Active courses",
+        "tasks_to_do": "Tasks to do",
+        "overdue_tasks": "Overdue tasks",
+        "waiting_grades": "Awaiting grades",
+        "tasks_heading": "Tasks that need attention",
+        "tasks_subtitle": "Upcoming deadlines first",
+        "view_all": "View all",
+        "no_pending_tasks": "Great! You have no unsubmitted tasks.",
+        "no_deadline": "No deadline set",
+        "sessions_heading": "Upcoming sessions",
+        "sessions_subtitle": "Your live class schedule",
+        "no_sessions": "No upcoming sessions right now.",
+        "continue_learning": "Continue learning",
+        "continue_subtitle": "Pick up where you left off in your active courses",
+        "no_active_courses": "You have no active courses right now.",
+        "explore": "Explore courses",
+        "progress": "Progress",
+        "progress_unavailable": "Progress is not available for this course."
     },
     "gdpr": {
         "heading": "Privacy & Data Rights",

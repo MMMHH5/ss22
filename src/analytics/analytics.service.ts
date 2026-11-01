@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Role } from '@prisma/client';
+import { resolveClassroom } from '../common/classroom';
 
 @Injectable()
 export class AnalyticsService {
@@ -91,6 +92,209 @@ export class AnalyticsService {
             level: points?.level || 1,
             streak: points?.streak || 0,
             recentActivity: pointLogs,
+        };
+    }
+
+    async getStudentDashboard(userId: string) {
+        const now = new Date();
+        const enrollments = await this.prisma.enrollment.findMany({
+            where: { studentId: userId },
+            orderBy: { createdAt: 'desc' },
+            include: {
+                course: {
+                    select: {
+                        id: true,
+                        titleAr: true,
+                        titleEn: true,
+                        contentType: true,
+                        _count: { select: { modules: true } },
+                    },
+                },
+                opening: {
+                    select: {
+                        id: true,
+                        status: true,
+                        nameAr: true,
+                        nameEn: true,
+                        deliveryMode: true,
+                        meetLink: true,
+                        liveSessions: {
+                            orderBy: { scheduledAt: 'asc' },
+                            select: {
+                                id: true,
+                                titleAr: true,
+                                titleEn: true,
+                                scheduledAt: true,
+                                durationMinutes: true,
+                                meetLink: true,
+                            },
+                        },
+                    },
+                },
+                _count: { select: { lessonProgress: true } },
+            },
+        });
+
+        const approved = enrollments.filter((enrollment) => enrollment.status === 'APPROVED');
+        const legacyCourseIds = [...new Set(
+            approved
+                .filter((enrollment) => !enrollment.openingId)
+                .map((enrollment) => enrollment.courseId),
+        )];
+        const legacyOpenings = legacyCourseIds.length
+            ? await this.prisma.courseOpening.findMany({
+                where: { courseId: { in: legacyCourseIds } },
+                select: {
+                    id: true,
+                    courseId: true,
+                    nameAr: true,
+                    nameEn: true,
+                    status: true,
+                    deliveryMode: true,
+                    meetLink: true,
+                    liveSessions: {
+                        orderBy: { scheduledAt: 'asc' },
+                        select: {
+                            id: true,
+                            titleAr: true,
+                            titleEn: true,
+                            scheduledAt: true,
+                            durationMinutes: true,
+                            meetLink: true,
+                        },
+                    },
+                },
+            })
+            : [];
+        const legacyByCourse = new Map<string, typeof legacyOpenings>();
+        for (const opening of legacyOpenings) {
+            legacyByCourse.set(opening.courseId, [...(legacyByCourse.get(opening.courseId) ?? []), opening]);
+        }
+
+        const approvedWithOpening = approved.map((enrollment) => ({
+            enrollment,
+            opening: enrollment.opening ?? (
+                legacyByCourse.get(enrollment.courseId)?.length === 1
+                    ? legacyByCourse.get(enrollment.courseId)![0]
+                    : null
+            ),
+        }));
+        const openingIds = [...new Set(
+            approvedWithOpening
+                .map(({ opening }) => opening?.id)
+                .filter((id): id is string => !!id),
+        )];
+        const enrollmentIds = approved.map((enrollment) => enrollment.id);
+        const enrollmentIdsByOpening = new Map<string, Set<string>>();
+        for (const { enrollment, opening } of approvedWithOpening) {
+            if (!opening) continue;
+            const openingEnrollmentIds = enrollmentIdsByOpening.get(opening.id) ?? new Set<string>();
+            openingEnrollmentIds.add(enrollment.id);
+            enrollmentIdsByOpening.set(opening.id, openingEnrollmentIds);
+        }
+        const tasks = openingIds.length && enrollmentIds.length
+            ? await this.prisma.courseTask.findMany({
+                where: { openingId: { in: openingIds } },
+                orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
+                include: {
+                    opening: {
+                        select: {
+                            id: true,
+                            nameAr: true,
+                            nameEn: true,
+                            course: { select: { id: true, titleAr: true, titleEn: true } },
+                        },
+                    },
+                    submissions: {
+                        where: { enrollmentId: { in: enrollmentIds } },
+                        select: { enrollmentId: true, submittedAt: true, score: true },
+                    },
+                },
+            })
+            : [];
+
+        const courseRows = approvedWithOpening.map(({ enrollment, opening }) => {
+            const totalModules = enrollment.course._count.modules;
+            const completedModules = enrollment._count.lessonProgress;
+            return {
+                id: enrollment.id,
+                courseId: enrollment.course.id,
+                titleAr: enrollment.course.titleAr,
+                titleEn: enrollment.course.titleEn,
+                openingId: opening?.id ?? null,
+                openingNameAr: opening?.nameAr ?? null,
+                openingNameEn: opening?.nameEn ?? null,
+                openingStatus: opening?.status ?? null,
+                progressPercent: totalModules
+                    ? Math.min(100, Math.round((completedModules / totalModules) * 100))
+                    : null,
+            };
+        });
+
+        const sessions = approvedWithOpening.flatMap(({ enrollment, opening }) => {
+            if (!opening || enrollment.course.contentType !== 'LIVE') return [];
+            const classroom = resolveClassroom(enrollment.status, opening, opening.liveSessions);
+            return classroom.liveSessions
+                .filter((session) => {
+                    const endsAt = session.durationMinutes
+                        ? session.scheduledAt.getTime() + session.durationMinutes * 60_000
+                        : session.scheduledAt.getTime();
+                    return endsAt >= now.getTime();
+                })
+                .map((session) => ({
+                    ...session,
+                    courseId: enrollment.course.id,
+                    courseTitleAr: enrollment.course.titleAr,
+                    courseTitleEn: enrollment.course.titleEn,
+                    openingId: opening.id,
+                    openingNameAr: opening.nameAr,
+                    openingNameEn: opening.nameEn,
+                }));
+        }).sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime());
+
+        const actionableTasks = tasks.flatMap((task) => {
+            const openingEnrollmentIds = enrollmentIdsByOpening.get(task.opening.id);
+            if (task.submissions.some((submission) => openingEnrollmentIds?.has(submission.enrollmentId))) return [];
+            return [{
+                id: task.id,
+                titleAr: task.titleAr,
+                titleEn: task.titleEn,
+                dueDate: task.dueDate,
+                isOverdue: !!task.dueDate && task.dueDate.getTime() < now.getTime(),
+                maxScore: task.maxScore,
+                courseId: task.opening.course.id,
+                courseTitleAr: task.opening.course.titleAr,
+                courseTitleEn: task.opening.course.titleEn,
+                openingId: task.opening.id,
+                openingNameAr: task.opening.nameAr,
+                openingNameEn: task.opening.nameEn,
+            }];
+        }).sort((a, b) => {
+            if (!a.dueDate) return b.dueDate ? 1 : 0;
+            if (!b.dueDate) return -1;
+            return a.dueDate.getTime() - b.dueDate.getTime();
+        });
+        const overdueTaskCount = actionableTasks.filter((task) =>
+            task.dueDate && task.dueDate.getTime() < now.getTime(),
+        ).length;
+        const pendingGradingCount = tasks.filter((task) =>
+            task.submissions.some((submission) =>
+                enrollmentIdsByOpening.get(task.opening.id)?.has(submission.enrollmentId) &&
+                submission.score === null,
+            ),
+        ).length;
+
+        return {
+            summary: {
+                activeCourseCount: courseRows.filter((course) => course.openingStatus !== 'ENDED').length,
+                completedCourseCount: courseRows.filter((course) => course.openingStatus === 'ENDED').length,
+                pendingTaskCount: actionableTasks.length,
+                overdueTaskCount,
+                pendingGradingCount,
+            },
+            courses: courseRows,
+            tasks: actionableTasks.slice(0, 5),
+            upcomingSessions: sessions.slice(0, 5),
         };
     }
 
