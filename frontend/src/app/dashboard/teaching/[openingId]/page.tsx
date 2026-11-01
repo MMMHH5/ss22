@@ -17,10 +17,20 @@ import { Settings2, ClipboardList, MessagesSquare, BarChart3, Flag, Users, BookO
 
 interface MyOpening {
     id: string;
+    instructorId: string;
     nameAr?: string | null;
     nameEn?: string | null;
     status: string;
     course: { id: string; titleAr?: string | null; titleEn?: string | null; contentType?: string | null };
+    access: {
+        canReadContent: boolean;
+        canManageTasks: boolean;
+        canGrade: boolean;
+        canManageSessions: boolean;
+        canManageAnnouncements: boolean;
+        canViewAnalytics: boolean;
+        isPrimaryInstructor: boolean;
+    };
 }
 
 interface RosterData {
@@ -42,6 +52,18 @@ interface ModuleData {
     outcomes?: { descriptionAr?: string | null; descriptionEn?: string | null }[];
     files?: { url: string; nameAr?: string | null; nameEn?: string | null }[] | null;
     links?: { url: string; labelAr?: string | null; labelEn?: string | null }[] | null;
+}
+
+interface OpeningAnalyticsReport {
+    id: string;
+    approvedStudentCount: number;
+    attendanceRate: number | null;
+    taskSubmissionRate: number | null;
+    needsFollowUpCount: number;
+}
+
+interface InstructorAnalyticsData {
+    openingReports: OpeningAnalyticsReport[];
 }
 
 interface SyllabusData {
@@ -83,17 +105,39 @@ export default function TeachingWorkspacePage() {
     };
 
     const { data: openings } = useFetchData<MyOpening[]>('/openings/mine');
-    const { data: rosterData } = useFetchData<RosterData>(`/openings/${openingId}/roster`);
-    const { data: tasksData } = useFetchData<TaskData[]>(`/tasks/opening/${openingId}`);
-    const { data: modulesData } = useFetchData<ModuleData[]>(`/openings/${openingId}/modules`);
-
     const opening = (openings || []).find((o) => o.id === openingId);
+    const { data: rosterData } = useFetchData<RosterData>(
+        opening?.access.canGrade ? `/openings/${openingId}/roster` : null,
+    );
+    const { data: tasksData } = useFetchData<TaskData[]>(
+        opening?.access.canManageTasks || opening?.access.canGrade ? `/tasks/opening/${openingId}` : null,
+    );
+    const { data: modulesData } = useFetchData<ModuleData[]>(
+        opening?.access.canReadContent ? `/openings/${openingId}/modules` : null,
+    );
+    const { data: analyticsData } = useFetchData<InstructorAnalyticsData>(
+        opening?.access.canViewAnalytics ? '/analytics/instructor-dashboard' : null,
+    );
+    const openingReport = analyticsData?.openingReports.find((report) => report.id === openingId);
     // A recorded course has no meeting schedule to manage: the tab is hidden, and
     // a direct ?tab=sessions link must not resurrect what the button cannot open.
     const isRecorded = opening?.course.contentType === 'RECORDED';
-    const tab: Tab = isRecorded && requestedTab === 'sessions' ? 'roster' : requestedTab;
+    const availableTabs: Tab[] = opening ? [
+        ...(opening.access.canGrade ? ['roster' as const] : []),
+        ...(opening.access.canManageTasks || opening.access.canGrade ? ['tasks' as const] : []),
+        ...(opening.access.canManageAnnouncements ? ['announcements' as const] : []),
+        ...(opening.access.isPrimaryInstructor ? ['calendar' as const, 'chat' as const] : []),
+        ...(!isRecorded && opening.access.canManageSessions ? ['sessions' as const] : []),
+        ...(opening.access.canReadContent ? ['content' as const] : []),
+        ...(opening.access.canViewAnalytics ? ['analytics' as const] : []),
+    ] : VALID_TABS;
+    const tab: Tab = availableTabs.includes(requestedTab)
+        ? requestedTab
+        : (availableTabs[0] ?? 'roster');
 
-    const { data: syllabusData } = useFetchData<SyllabusData>(opening ? `/lms/courses/${opening.course.id}/syllabus` : null);
+    const { data: syllabusData } = useFetchData<SyllabusData>(
+        opening?.access.canReadContent ? `/lms/courses/${opening.course.id}/syllabus` : null,
+    );
 
     const studentCount = rosterData?.enrollments?.length;
     const taskCount = Array.isArray(tasksData) ? tasksData.length : null;
@@ -154,12 +198,14 @@ export default function TeachingWorkspacePage() {
                             {opening ? pick(opening.course, 'title') : '...'}
                         </p>
                     </div>
-                    <a
-                        href={`/dashboard/teaching?close=${openingId}`}
-                        className="inline-flex items-center gap-2 text-sm font-bold text-red-400 bg-red-500/10 border border-red-500/20 px-4 py-2.5 rounded-xl hover:bg-red-500 hover:text-white transition"
-                    >
-                        <Flag size={15} /> {t('teaching.request_close_btn')}
-                    </a>
+                    {opening?.access.isPrimaryInstructor && (
+                        <a
+                            href={`/dashboard/teaching?close=${openingId}`}
+                            className="inline-flex items-center gap-2 text-sm font-bold text-red-400 bg-red-500/10 border border-red-500/20 px-4 py-2.5 rounded-xl hover:bg-red-500 hover:text-white transition"
+                        >
+                            <Flag size={15} /> {t('teaching.request_close_btn')}
+                        </a>
+                    )}
                 </div>
 
                 <div className="flex items-center gap-3 flex-wrap">
@@ -169,20 +215,26 @@ export default function TeachingWorkspacePage() {
                 </div>
 
                 <div className="inline-flex items-center gap-1 bg-brand-navy-dark border border-white/5 rounded-2xl p-1.5 overflow-x-auto max-w-full">
-                    {tabBtn('roster', <Settings2 size={16} />, isAr ? 'الطلاب والدرجات' : 'Roster')}
-                    {tabBtn('tasks', <ClipboardList size={16} />, t('tasks.tasks_title'))}
-                    {tabBtn('announcements', <Megaphone size={16} />, isAr ? 'الإعلانات' : 'Announcements')}
-                    {tabBtn('calendar', <Calendar size={16} />, isAr ? 'التقويم' : 'Calendar')}
+                    {availableTabs.includes('roster') && tabBtn('roster', <Settings2 size={16} />, isAr ? 'الطلاب والدرجات' : 'Roster')}
+                    {availableTabs.includes('tasks') && tabBtn('tasks', <ClipboardList size={16} />, t('tasks.tasks_title'))}
+                    {availableTabs.includes('announcements') && tabBtn('announcements', <Megaphone size={16} />, isAr ? 'الإعلانات' : 'Announcements')}
+                    {availableTabs.includes('calendar') && tabBtn('calendar', <Calendar size={16} />, isAr ? 'التقويم' : 'Calendar')}
                     {/* A pre-recorded course has no meetings to schedule, so the
                         tab is not offered at all rather than shown empty. */}
-                    {!isRecorded && tabBtn('sessions', <Video size={16} />, isAr ? 'الجلسات' : 'Sessions')}
-                    {tabBtn('content', <BookOpen size={16} />, isAr ? 'المحتوى' : 'Content')}
-                    {tabBtn('chat', <MessagesSquare size={16} />, isAr ? 'الدردشة' : 'Chat')}
-                    {tabBtn('analytics', <BarChart3 size={16} />, isAr ? 'الإحصائيات' : 'Analytics')}
+                    {availableTabs.includes('sessions') && tabBtn('sessions', <Video size={16} />, isAr ? 'الجلسات' : 'Sessions')}
+                    {availableTabs.includes('content') && tabBtn('content', <BookOpen size={16} />, isAr ? 'المحتوى' : 'Content')}
+                    {availableTabs.includes('chat') && tabBtn('chat', <MessagesSquare size={16} />, isAr ? 'الدردشة' : 'Chat')}
+                    {availableTabs.includes('analytics') && tabBtn('analytics', <BarChart3 size={16} />, isAr ? 'الإحصائيات' : 'Analytics')}
                 </div>
 
                 {tab === 'roster' && !!openingId && <RosterGrades openingId={String(openingId)} />}
-                {tab === 'tasks' && !!openingId && <TasksPanel openingId={String(openingId)} />}
+                {tab === 'tasks' && !!openingId && opening && (
+                    <TasksPanel
+                        openingId={String(openingId)}
+                        canManageTasks={opening.access.canManageTasks}
+                        canGrade={opening.access.canGrade}
+                    />
+                )}
                 {tab === 'announcements' && !!openingId && <InstructorAnnouncements openingId={String(openingId)} />}
                 {tab === 'calendar' && !!openingId && (
                     <div className="bg-brand-navy-dark border border-white/5 rounded-2xl p-6">
@@ -217,26 +269,28 @@ export default function TeachingWorkspacePage() {
                                 </div>
                                 <p className="text-gray-400 text-sm font-bold">{isAr ? 'إجمالي الطلاب' : 'Total Students'}</p>
                             </div>
-                            <p className="text-3xl font-black text-white">{studentCount ?? '—'}</p>
+                            <p className="text-3xl font-black text-white">{openingReport?.approvedStudentCount ?? '—'}</p>
                         </div>
                         <div className="bg-brand-navy-dark border border-white/5 rounded-2xl p-6">
                             <div className="flex items-center gap-3 mb-3">
                                 <div className="w-10 h-10 rounded-xl bg-brand-gold/10 flex items-center justify-center">
                                     <ClipboardList size={20} className="text-brand-gold-light" />
                                 </div>
-                                <p className="text-gray-400 text-sm font-bold">{isAr ? 'إجمالي المهام' : 'Total Tasks'}</p>
+                                <p className="text-gray-400 text-sm font-bold">{isAr ? 'نسبة الحضور' : 'Attendance rate'}</p>
                             </div>
-                            <p className="text-3xl font-black text-white">{taskCount ?? '—'}</p>
+                            <p className="text-3xl font-black text-white">
+                                {openingReport?.attendanceRate == null ? '—' : `${openingReport.attendanceRate}%`}
+                            </p>
                         </div>
                         <div className="bg-brand-navy-dark border border-white/5 rounded-2xl p-6">
                             <div className="flex items-center gap-3 mb-3">
                                 <div className="w-10 h-10 rounded-xl bg-brand-gold/10 flex items-center justify-center">
                                     <BookOpen size={20} className="text-brand-gold-light" />
                                 </div>
-                                <p className="text-gray-400 text-sm font-bold">{isAr ? 'الدورة' : 'Course'}</p>
+                                <p className="text-gray-400 text-sm font-bold">{isAr ? 'تسليم الواجبات' : 'Task submissions'}</p>
                             </div>
-                            <p className="text-lg font-black text-white leading-tight">
-                                {opening ? pick(opening.course, 'title') : '—'}
+                            <p className="text-3xl font-black text-white">
+                                {openingReport?.taskSubmissionRate == null ? '—' : `${openingReport.taskSubmissionRate}%`}
                             </p>
                         </div>
                         <div className="bg-brand-navy-dark border border-white/5 rounded-2xl p-6">
@@ -244,12 +298,9 @@ export default function TeachingWorkspacePage() {
                                 <div className="w-10 h-10 rounded-xl bg-brand-gold/10 flex items-center justify-center">
                                     <Hash size={20} className="text-brand-gold-light" />
                                 </div>
-                                <p className="text-gray-400 text-sm font-bold">{isAr ? 'الدورة' : 'Opening'}</p>
+                                <p className="text-gray-400 text-sm font-bold">{isAr ? 'يحتاجون متابعة' : 'Need follow-up'}</p>
                             </div>
-                            <p className="text-lg font-black text-white leading-tight">
-                                {pick(opening, 'name') || '—'}
-                            </p>
-                            <div className="mt-2">{statusBadge(opening.status)}</div>
+                            <p className="text-3xl font-black text-white">{openingReport?.needsFollowUpCount ?? '—'}</p>
                         </div>
                     </div>
                 )}

@@ -121,6 +121,13 @@ enum ReferralStatus {
   EXPIRED
 }
 
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  ABSENT
+  EXCUSED
+}
+
 model User {
   id                 String    @id @default(uuid())
   email              String    @unique
@@ -143,23 +150,25 @@ model User {
   updatedAt          DateTime  @updatedAt
 
   // Relations
-  coursesTaught  Course[]        @relation("InstructorCourses")
-  openingsTaught CourseOpening[] @relation("OpeningInstructors")
-  enrollments    Enrollment[]
-  certificates   Certificate[]
+  coursesTaught                  Course[]                 @relation("InstructorCourses")
+  openingsTaught                 CourseOpening[]          @relation("OpeningInstructors")
+  openingInstructorGrants        OpeningInstructorGrant[] @relation("OpeningInstructor")
+  openingInstructorGrantsCreated OpeningInstructorGrant[] @relation("OpeningInstructorGrantor")
+  enrollments                    Enrollment[]
+  certificates                   Certificate[]
 
   // Certificates this staff member released on paper. Named separately from
   // `certificates`, which is the student side of the same table.
-  printedCertificates       Certificate[]            @relation("CertificatePrintedBy")
+  printedCertificates       Certificate[]              @relation("CertificatePrintedBy")
   auditLogs                 AuditLog[]
   visitSessions             VisitSession[]
   operationsAccess          OperationsAllowlistEntry[] @relation("OperationsAllowlisted")
   operationsGranted         OperationsAllowlistEntry[] @relation("OperationsGrantedBy")
-  operationsSettingsChanges OperationsSetting[]     @relation("OperationsChangedBy")
+  operationsSettingsChanges OperationsSetting[]        @relation("OperationsChangedBy")
   applications              InstructorApplication[]
   tickets                   SupportTicket[]
-  sentMessages              Message[]                @relation("SentMessages")
-  receivedMessages          Message[]                @relation("ReceivedMessages")
+  sentMessages              Message[]                  @relation("SentMessages")
+  receivedMessages          Message[]                  @relation("ReceivedMessages")
   openingRequests           OpeningRequest[]
   closeRequests             CloseRequest[]
   courseSuggestions         CourseSuggestion[]
@@ -170,27 +179,28 @@ model User {
   payments                  Payment[]
   wishlist                  Wishlist[]
   reviews                   CourseReview[]
-  referralsMade             Referral[]               @relation("Referrer")
+  referralsMade             Referral[]                 @relation("Referrer")
   couponRedemptions         CouponRedemption[]
   blogPosts                 BlogPost[]
   announcements             Announcement[]
   chatMemberships           ChatRoomMember[]
   chatMessages              ChatMessage[]
-  directChatsAsStudent      DirectChat[]             @relation("DirectChatStudent")
-  directChatsAsInstructor   DirectChat[]             @relation("DirectChatInstructor")
+  directChatsAsStudent      DirectChat[]               @relation("DirectChatStudent")
+  directChatsAsInstructor   DirectChat[]               @relation("DirectChatInstructor")
   directMessages            DirectMessage[]
   discussionPosts           DiscussionPost[]
   discussionReplies         DiscussionReply[]
-  instructorRatingsReceived InstructorRating[]       @relation("InstructorRatingReceived")
-  instructorRatingsGiven    InstructorRating[]       @relation("InstructorRatingGiven")
+  instructorRatingsReceived InstructorRating[]         @relation("InstructorRatingReceived")
+  instructorRatingsGiven    InstructorRating[]         @relation("InstructorRatingGiven")
   points                    UserPoints?
   pointLogs                 PointLog[]
   learningPathsCreated      LearningPath[]
   learningSessions          LearningSession[]
   peerReviewsGiven          PeerReview[]
   announcementBoardPosts    AnnouncementBoard[]
-  refundRequests            RefundRequest[]          @relation("RefundRequests")
-  reviewedRefundRequests    RefundRequest[]          @relation("RefundReviewedBy")
+  refundRequests            RefundRequest[]            @relation("RefundRequests")
+  reviewedRefundRequests    RefundRequest[]            @relation("RefundReviewedBy")
+  attendanceMarked          SessionAttendance[]        @relation("AttendanceMarkedBy")
 }
 
 model Course {
@@ -304,16 +314,39 @@ model CourseOpening {
   instructorId String
   instructor   User   @relation("OpeningInstructors", fields: [instructorId], references: [id], onDelete: Restrict)
 
-  enrollments    Enrollment[]
-  assessments    Assessment[]
-  closeRequests  CloseRequest[]
-  tasks          CourseTask[]
-  payments       Payment[]
-  chatRoom       ChatRoom?
-  announcements  Announcement[]
-  calendarEvents CalendarEvent[]
-  refundRequests RefundRequest[]
-  liveSessions   LiveSession[]
+  enrollments      Enrollment[]
+  assessments      Assessment[]
+  closeRequests    CloseRequest[]
+  tasks            CourseTask[]
+  payments         Payment[]
+  chatRoom         ChatRoom?
+  announcements    Announcement[]
+  calendarEvents   CalendarEvent[]
+  refundRequests   RefundRequest[]
+  liveSessions     LiveSession[]
+  instructorGrants OpeningInstructorGrant[]
+}
+
+model OpeningInstructorGrant {
+  id                     String   @id @default(uuid())
+  canReadContent         Boolean  @default(false)
+  canManageTasks         Boolean  @default(false)
+  canGrade               Boolean  @default(false)
+  canManageSessions      Boolean  @default(false)
+  canManageAnnouncements Boolean  @default(false)
+  canViewAnalytics       Boolean  @default(false)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  openingId    String
+  opening      CourseOpening @relation(fields: [openingId], references: [id], onDelete: Cascade)
+  instructorId String
+  instructor   User          @relation("OpeningInstructor", fields: [instructorId], references: [id], onDelete: Cascade)
+  grantedById  String?
+  grantedBy    User?         @relation("OpeningInstructorGrantor", fields: [grantedById], references: [id], onDelete: SetNull)
+
+  @@unique([openingId, instructorId])
+  @@index([instructorId])
 }
 
 model CourseObjective {
@@ -466,6 +499,7 @@ model Enrollment {
   lessonProgress LessonProgress[]
   lessonNotes    LessonNote[]
   quizAttempts   QuizAttempt[]
+  attendance     SessionAttendance[]
 
   // A student can only enroll in a specific course once (or have one active record)
   @@unique([studentId, courseId])
@@ -495,7 +529,29 @@ model LiveSession {
   openingId String
   opening   CourseOpening @relation(fields: [openingId], references: [id], onDelete: Cascade)
 
+  attendance SessionAttendance[]
+
   @@index([openingId, scheduledAt])
+}
+
+model SessionAttendance {
+  id        String           @id @default(uuid())
+  status    AttendanceStatus
+  note      String?
+  markedAt  DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  sessionId String
+  session   LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  enrollmentId String
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  markedById String?
+  markedBy   User?   @relation("AttendanceMarkedBy", fields: [markedById], references: [id], onDelete: SetNull)
+
+  @@unique([sessionId, enrollmentId])
+  @@index([enrollmentId, markedAt])
 }
 
 model Certificate {
@@ -550,15 +606,15 @@ model AuditLog {
 /// verification rejects any grant whose version is stale. That is what turns
 /// "log out everywhere" from a hope into a fact.
 model OperationsSetting {
-  id          String   @id @default("singleton")
+  id          String    @id @default("singleton")
   keyHash     String?
-  keyVersion  Int      @default(1)
+  keyVersion  Int       @default(1)
   /// Set once the owner has created a password here. Drives the UI's warning
   /// that the env var is still a second, weaker way in.
   migratedAt  DateTime?
-  updatedAt   DateTime @updatedAt
+  updatedAt   DateTime  @updatedAt
   changedById String?
-  changedBy   User?    @relation("OperationsChangedBy", fields: [changedById], references: [id], onDelete: SetNull)
+  changedBy   User?     @relation("OperationsChangedBy", fields: [changedById], references: [id], onDelete: SetNull)
 }
 
 /// Which admin accounts may open the operations page.
@@ -584,22 +640,22 @@ model OperationsAllowlistEntry {
 /// signed in" is the question this table exists to answer. `userId` is filled in
 /// opportunistically -- it is null for anonymous traffic, which is most of it.
 model VisitSession {
-  id          String   @id @default(uuid())
-  visitorId   String   @unique
-  userId      String?
-  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  id        String  @id @default(uuid())
+  visitorId String  @unique
+  userId    String?
+  user      User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  ipAddress   String?
-  userAgent   String?
-  deviceType  String   @default("desktop")
-  os          String?
-  browser     String?
-  referrer    String?
-  language    String?
-  screen      String?
-  timezone    String?
+  ipAddress  String?
+  userAgent  String?
+  deviceType String  @default("desktop")
+  os         String?
+  browser    String?
+  referrer   String?
+  language   String?
+  screen     String?
+  timezone   String?
 
-  isBot        Boolean @default(false)
+  isBot           Boolean @default(false)
   isAuthenticated Boolean @default(false)
 
   firstSeenAt DateTime @default(now())
@@ -625,9 +681,9 @@ model VisitSession {
 /// credential store on the platform. `meta` exists for the few shapes that are
 /// safe to keep (a resource id, a count), not as a general escape hatch.
 model VisitEvent {
-  id         String       @id @default(uuid())
-  sessionId  String
-  session    VisitSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  id        String       @id @default(uuid())
+  sessionId String
+  session   VisitSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   // page_view | api_call | action | security
   type       String

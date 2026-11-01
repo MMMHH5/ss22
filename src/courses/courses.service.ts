@@ -11,8 +11,16 @@ import { normalizeMeetLink } from '../common/meeting-links';
 import { CreateCourseDto, UpdateCourseDto } from './dto/create-course.dto';
 import { CreateOpeningDto } from './dto/create-opening.dto';
 import { UpdateOpeningDto } from './dto/update-opening.dto';
+import { OpeningInstructorGrantDto } from './dto/opening-instructor-grants.dto';
 
 type CourseViewer = { userId?: string; role?: Role };
+type OpeningPermission =
+    | 'canReadContent'
+    | 'canManageTasks'
+    | 'canGrade'
+    | 'canManageSessions'
+    | 'canManageAnnouncements'
+    | 'canViewAnalytics';
 
 type ModuleDraft = {
     titleAr: string; titleEn: string; descriptionAr?: string; descriptionEn?: string; videoUrl?: string;
@@ -289,7 +297,12 @@ export class CoursesService {
         if (!viewer?.userId) return [];
         const [taught, enrolled] = await Promise.all([
             this.prisma.courseOpening.findMany({
-                where: { instructorId: viewer.userId },
+                where: {
+                    OR: [
+                        { instructorId: viewer.userId },
+                        { instructorGrants: { some: { instructorId: viewer.userId } } },
+                    ],
+                },
                 select: { courseId: true },
                 distinct: ['courseId'],
             }),
@@ -334,6 +347,7 @@ export class CoursesService {
 
     async findAll(includeUnpublished = false, viewer?: CourseViewer) {
         const openingsWhere = await this.visibleOpeningsFilter(includeUnpublished, viewer);
+        const sessionManagedOpeningIds = await this.sessionManagedOpeningIds(viewer);
         const courses = await this.prisma.course.findMany({
             orderBy: { createdAt: 'desc' },
             include: {
@@ -352,13 +366,14 @@ export class CoursesService {
             const shaped = mapPublicCourse(course);
             return {
                 ...shaped,
-                openings: shaped.openings?.map((o) => this.stripClassroomLink(o, viewer)),
+                openings: shaped.openings?.map((o) => this.stripClassroomLink(o, viewer, sessionManagedOpeningIds)),
             };
         });
     }
 
     async findOne(id: string, includeUnpublished = false, viewer?: CourseViewer) {
         const openingsWhere = await this.visibleOpeningsFilter(includeUnpublished, viewer);
+        const sessionManagedOpeningIds = await this.sessionManagedOpeningIds(viewer);
         const course = await this.prisma.course.findUnique({
             where: { id },
             include: {
@@ -397,7 +412,7 @@ export class CoursesService {
             : mapPublicCourse(this.redactPaidContent(course));
         return {
             ...shaped,
-            openings: shaped.openings?.map((o) => this.stripClassroomLink(o, viewer)),
+            openings: shaped.openings?.map((o) => this.stripClassroomLink(o, viewer, sessionManagedOpeningIds)),
             viewerAccess: await this.viewerAccess(course.id, viewer),
         };
     }
@@ -412,12 +427,25 @@ export class CoursesService {
      * to any anonymous visitor who asks. `deliveryMode` stays: "this batch is
      * online" is public syllabus information, the room itself is not.
      */
-    private stripClassroomLink<T extends { meetLink?: string | null; instructorId?: string | null }>(
+    private async sessionManagedOpeningIds(viewer?: CourseViewer) {
+        if (viewer?.role !== Role.INSTRUCTOR || !viewer.userId) return new Set<string>();
+        const grants = await this.prisma.openingInstructorGrant.findMany({
+            where: { instructorId: viewer.userId, canManageSessions: true },
+            select: { openingId: true },
+        });
+        return new Set(grants.map((grant) => grant.openingId));
+    }
+
+    private stripClassroomLink<T extends { id?: string; meetLink?: string | null; instructorId?: string | null }>(
         opening: T,
         viewer?: CourseViewer,
+        sessionManagedOpeningIds: ReadonlySet<string> = new Set(),
     ): Omit<T, 'meetLink'> & Partial<Pick<T, 'meetLink'>> {
         const manages = viewer?.role === Role.ADMIN || viewer?.role === Role.COURSE_MANAGER
-            || (viewer?.role === Role.INSTRUCTOR && opening.instructorId === viewer.userId);
+            || (viewer?.role === Role.INSTRUCTOR && (
+                opening.instructorId === viewer.userId
+                || (!!opening.id && sessionManagedOpeningIds.has(opening.id))
+            ));
         if (manages) return opening;
         const { meetLink: _drop, ...rest } = opening;
         return rest;
@@ -486,9 +514,18 @@ export class CoursesService {
         if (!viewer?.userId) return false;
         if (viewer.role === Role.ADMIN || viewer.role === Role.COURSE_MANAGER) return true;
         if (course.instructorId === viewer.userId) return true;
-        const [opening, enrollment] = await Promise.all([
+        const [opening, assistantGrant, enrollment] = await Promise.all([
             this.prisma.courseOpening.findFirst({
                 where: { courseId: course.id, instructorId: viewer.userId },
+                select: { id: true },
+            }),
+            this.prisma.courseOpening.findFirst({
+                where: {
+                    courseId: course.id,
+                    instructorGrants: {
+                        some: { instructorId: viewer.userId, canReadContent: true },
+                    },
+                },
                 select: { id: true },
             }),
             this.prisma.enrollment.findFirst({
@@ -496,7 +533,7 @@ export class CoursesService {
                 select: { id: true },
             }),
         ]);
-        return !!opening || !!enrollment;
+        return !!opening || !!assistantGrant || !!enrollment;
     }
 
     // Titles, descriptions and outcomes stay visible: that is the public
@@ -560,7 +597,8 @@ export class CoursesService {
             orderBy: { createdAt: 'desc' },
             include: this.openingInclude,
         });
-        return openings.map((o) => this.stripClassroomLink(o, viewer));
+        const sessionManagedOpeningIds = await this.sessionManagedOpeningIds(viewer);
+        return openings.map((o) => this.stripClassroomLink(o, viewer, sessionManagedOpeningIds));
     }
 
     async listMyOpenings(userId: string, actorRole: Role) {
@@ -568,8 +606,13 @@ export class CoursesService {
         if (!isStaff && actorRole !== Role.INSTRUCTOR) {
             throw new ForbiddenException('Not allowed to list openings');
         }
-        return this.prisma.courseOpening.findMany({
-            where: isStaff ? undefined : { instructorId: userId },
+        const openings = await this.prisma.courseOpening.findMany({
+            where: isStaff ? undefined : {
+                OR: [
+                    { instructorId: userId },
+                    { instructorGrants: { some: { instructorId: userId } } },
+                ],
+            },
             orderBy: { createdAt: 'desc' },
             include: {
                 // contentType rides along so the teaching page can hide the live
@@ -578,19 +621,137 @@ export class CoursesService {
                 course: { select: { id: true, titleAr: true, titleEn: true, contentType: true } },
                 instructor: { select: { id: true, email: true, role: true } },
                 _count: { select: { enrollments: true, tasks: true } },
+                instructorGrants: {
+                    where: { instructorId: userId },
+                    select: {
+                        canReadContent: true,
+                        canManageTasks: true,
+                        canGrade: true,
+                        canManageSessions: true,
+                        canManageAnnouncements: true,
+                        canViewAnalytics: true,
+                    },
+                },
             },
+        });
+        return openings.map(({ instructorGrants, ...opening }) => {
+            const primary = isStaff || opening.instructorId === userId;
+            const grant = instructorGrants?.[0];
+            const canManageSessions = primary || !!grant?.canManageSessions;
+            const access = {
+                canReadContent: primary || !!grant?.canReadContent,
+                canManageTasks: primary || !!grant?.canManageTasks,
+                canGrade: primary || !!grant?.canGrade,
+                canManageSessions,
+                canManageAnnouncements: primary || !!grant?.canManageAnnouncements,
+                canViewAnalytics: primary || !!grant?.canViewAnalytics,
+                isPrimaryInstructor: primary,
+            };
+            return {
+                ...opening,
+                ...(canManageSessions ? {} : { meetLink: null }),
+                ...(primary ? {} : {
+                    price: null,
+                    priceOld: null,
+                    refundWindowDays: null,
+                    maxStudents: null,
+                    seatsTaken: null,
+                    _count: {
+                        enrollments: access.canGrade || access.canManageTasks || access.canViewAnalytics
+                            ? opening._count.enrollments
+                            : null,
+                        tasks: access.canManageTasks || access.canGrade || access.canViewAnalytics
+                            ? opening._count.tasks
+                            : null,
+                    },
+                }),
+                access,
+            };
         });
     }
 
     async listOpeningModules(openingId: string, actorId: string, actorRole: Role) {
-        const opening = await this.prisma.courseOpening.findUnique({ where: { id: openingId } });
-        if (!opening) throw new NotFoundException('Opening not found');
-        this.assertCanManage(opening, actorId, actorRole);
+        const opening = await this.assertCanManageOpening(
+            openingId,
+            actorId,
+            actorRole,
+            ['canReadContent', 'canManageTasks'],
+        );
         return this.prisma.module.findMany({
             where: { courseId: opening.courseId },
             orderBy: { orderIndex: 'asc' },
             select: { id: true, titleAr: true, titleEn: true, orderIndex: true },
         });
+    }
+
+    async getOpeningInstructorGrants(openingId: string) {
+        const opening = await this.prisma.courseOpening.findUnique({
+            where: { id: openingId },
+            select: { id: true },
+        });
+        if (!opening) throw new NotFoundException('Opening not found');
+        return this.prisma.openingInstructorGrant.findMany({
+            where: { openingId },
+            orderBy: { instructor: { email: 'asc' } },
+            select: {
+                instructorId: true,
+                canReadContent: true,
+                canManageTasks: true,
+                canGrade: true,
+                canManageSessions: true,
+                canManageAnnouncements: true,
+                canViewAnalytics: true,
+                instructor: { select: { id: true, email: true } },
+            },
+        });
+    }
+
+    async setOpeningInstructorGrants(
+        openingId: string,
+        instructors: OpeningInstructorGrantDto[],
+        grantedById: string,
+    ) {
+        const opening = await this.prisma.courseOpening.findUnique({
+            where: { id: openingId },
+            select: { id: true, instructorId: true },
+        });
+        if (!opening) throw new NotFoundException('Opening not found');
+
+        const ids = instructors.map(({ instructorId }) => instructorId);
+        if (new Set(ids).size !== ids.length) {
+            throw new BadRequestException('An instructor can only be listed once');
+        }
+        if (ids.includes(opening.instructorId)) {
+            throw new BadRequestException('The primary instructor already has full access');
+        }
+        if (instructors.some((grant) => !Object.values(grant).some((value) => value === true))) {
+            throw new BadRequestException('Each secondary instructor must have at least one permission');
+        }
+
+        if (ids.length > 0) {
+            const validInstructors = await this.prisma.user.findMany({
+                where: { id: { in: ids }, role: Role.INSTRUCTOR },
+                select: { id: true },
+            });
+            if (validInstructors.length !== ids.length) {
+                throw new BadRequestException('Every assigned user must have the instructor role');
+            }
+        }
+
+        await this.prisma.$transaction(async (tx) => {
+            await tx.openingInstructorGrant.deleteMany({ where: { openingId } });
+            if (instructors.length > 0) {
+                await tx.openingInstructorGrant.createMany({
+                    data: instructors.map((grant) => ({ ...grant, openingId, grantedById })),
+                });
+            }
+        });
+        await this.audit.logAction(
+            `Updated assistant instructor permissions for opening ${openingId}`,
+            undefined,
+            grantedById,
+        );
+        return this.getOpeningInstructorGrants(openingId);
     }
 
     async updateOpening(openingId: string, dto: UpdateOpeningDto, actorId: string, actorRole: Role) {
@@ -626,11 +787,17 @@ export class CoursesService {
             if (dto.meetLink !== undefined || resolved.link === null) data.meetLink = resolved.link;
         }
 
-        return this.prisma.courseOpening.update({
+        const updated = await this.prisma.courseOpening.update({
             where: { id: openingId },
             data,
             include: this.openingInclude,
         });
+        if (dto.instructorId) {
+            await this.prisma.openingInstructorGrant.deleteMany({
+                where: { openingId, instructorId: dto.instructorId },
+            });
+        }
+        return updated;
     }
 
     private async requireOpening(openingId: string) {
@@ -683,11 +850,60 @@ export class CoursesService {
      * of an opening (its live sessions), so "who may change this batch" stays
      * defined in one place instead of being restated per resource.
      */
-    async assertCanManageOpening(openingId: string, actorId: string, actorRole: Role) {
-        const opening = await this.prisma.courseOpening.findUnique({ where: { id: openingId } });
+    async assertCanManageOpening(
+        openingId: string,
+        actorId: string,
+        actorRole: Role,
+        permission?: OpeningPermission | OpeningPermission[],
+    ) {
+        const opening = await this.prisma.courseOpening.findUnique({
+            where: { id: openingId },
+            include: {
+                instructorGrants: {
+                    where: { instructorId: actorId },
+                },
+            },
+        });
         if (!opening) throw new NotFoundException('Opening not found');
-        this.assertCanManage(opening, actorId, actorRole);
-        return opening;
+        if (actorRole === Role.ADMIN || actorRole === Role.COURSE_MANAGER) return opening;
+        if (actorRole === Role.INSTRUCTOR && opening.instructorId === actorId) return opening;
+        const grant = opening.instructorGrants?.[0];
+        const requested = permission
+            ? Array.isArray(permission) ? permission : [permission]
+            : [];
+        if (actorRole === Role.INSTRUCTOR && requested.some((capability) => grant?.[capability])) return opening;
+        throw new ForbiddenException('You are not allowed to manage this opening');
+    }
+
+    async hasOpeningPermission(
+        openingId: string,
+        actorId: string,
+        actorRole: Role,
+        permissions: OpeningPermission[],
+    ) {
+        if (actorRole === Role.ADMIN || actorRole === Role.COURSE_MANAGER) return true;
+        if (actorRole !== Role.INSTRUCTOR) return false;
+        const opening = await this.prisma.courseOpening.findUnique({
+            where: { id: openingId },
+            select: {
+                instructorId: true,
+                instructorGrants: {
+                    where: { instructorId: actorId },
+                    select: {
+                        canReadContent: true,
+                        canManageTasks: true,
+                        canGrade: true,
+                        canManageSessions: true,
+                        canManageAnnouncements: true,
+                        canViewAnalytics: true,
+                    },
+                },
+            },
+        });
+        if (!opening) return false;
+        if (opening.instructorId === actorId) return true;
+        const grant = opening.instructorGrants?.[0];
+        return permissions.some((permission) => grant?.[permission] === true);
     }
 
     private async setStatus(openingId: string, status: CourseOpeningStatus) {

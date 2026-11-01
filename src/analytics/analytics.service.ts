@@ -125,6 +125,184 @@ export class AnalyticsService {
         };
     }
 
+    async getInstructorDashboard(userId: string) {
+        const openings = await this.prisma.courseOpening.findMany({
+            where: {
+                OR: [
+                    { instructorId: userId },
+                    { instructorGrants: { some: { instructorId: userId } } },
+                ],
+            },
+            orderBy: { createdAt: 'desc' },
+            select: {
+                id: true,
+                nameAr: true,
+                nameEn: true,
+                status: true,
+                startDate: true,
+                endDate: true,
+                instructorId: true,
+                instructorGrants: {
+                    where: { instructorId: userId },
+                    select: { canViewAnalytics: true, canManageSessions: true },
+                },
+                course: { select: { id: true, titleAr: true, titleEn: true } },
+            },
+        });
+        const openingIds = openings.map((opening) => opening.id);
+        if (openingIds.length === 0) {
+            return {
+                openingCount: 0,
+                activeOpeningCount: 0,
+                approvedStudentCount: 0,
+                ungradedSubmissionCount: 0,
+                openings: [],
+                openingReports: [],
+                upcomingSessions: [],
+            };
+        }
+
+        const reportableOpenings = openings.filter((opening) =>
+            opening.instructorId === userId || opening.instructorGrants?.[0]?.canViewAnalytics,
+        );
+        const analyticsOpeningIds = reportableOpenings.map((opening) => opening.id);
+        const sessionOpeningIds = openings
+            .filter((opening) => opening.instructorId === userId || opening.instructorGrants?.[0]?.canManageSessions)
+            .map((opening) => opening.id);
+        const now = new Date();
+        const [enrollments, dueTasks, submissionsByEnrollment, attendanceByEnrollment, ungradedSubmissionCount, upcomingSessions] = await Promise.all([
+            analyticsOpeningIds.length
+                ? this.prisma.enrollment.findMany({
+                    where: { openingId: { in: analyticsOpeningIds }, status: 'APPROVED' },
+                    select: { id: true, openingId: true },
+                })
+                : Promise.resolve([]),
+            analyticsOpeningIds.length
+                ? this.prisma.courseTask.findMany({
+                    where: {
+                        openingId: { in: analyticsOpeningIds },
+                        OR: [{ dueDate: null }, { dueDate: { lte: now } }],
+                    },
+                    select: { id: true, openingId: true },
+                })
+                : Promise.resolve([]),
+            analyticsOpeningIds.length
+                ? this.prisma.taskSubmission.groupBy({
+                    by: ['enrollmentId'],
+                    where: {
+                        task: {
+                            openingId: { in: analyticsOpeningIds },
+                            OR: [{ dueDate: null }, { dueDate: { lte: now } }],
+                        },
+                        enrollment: { openingId: { in: analyticsOpeningIds }, status: 'APPROVED' },
+                    },
+                    _count: { _all: true },
+                })
+                : Promise.resolve([]),
+            analyticsOpeningIds.length
+                ? this.prisma.sessionAttendance.groupBy({
+                    by: ['enrollmentId', 'status'],
+                    where: {
+                        session: { openingId: { in: analyticsOpeningIds } },
+                        enrollment: { openingId: { in: analyticsOpeningIds }, status: 'APPROVED' },
+                    },
+                    _count: { _all: true },
+                })
+                : Promise.resolve([]),
+            analyticsOpeningIds.length
+                ? this.prisma.taskSubmission.count({
+                    where: { score: null, task: { openingId: { in: analyticsOpeningIds } } },
+                })
+                : Promise.resolve(0),
+            sessionOpeningIds.length
+                ? this.prisma.liveSession.findMany({
+                where: {
+                    openingId: { in: sessionOpeningIds },
+                    scheduledAt: { gte: now },
+                    opening: { course: { contentType: 'LIVE' } },
+                },
+                orderBy: { scheduledAt: 'asc' },
+                take: 6,
+                select: {
+                    id: true,
+                    titleAr: true,
+                    titleEn: true,
+                    scheduledAt: true,
+                    durationMinutes: true,
+                    opening: {
+                        select: {
+                            id: true,
+                            nameAr: true,
+                            nameEn: true,
+                            course: { select: { id: true, titleAr: true, titleEn: true } },
+                        },
+                    },
+                },
+            })
+                : Promise.resolve([]),
+        ]);
+
+        const dueTaskCounts = new Map<string, number>();
+        for (const task of dueTasks) {
+            dueTaskCounts.set(task.openingId, (dueTaskCounts.get(task.openingId) ?? 0) + 1);
+        }
+
+        const submittedTaskCounts = new Map<string, number>();
+        for (const submission of submissionsByEnrollment) {
+            submittedTaskCounts.set(submission.enrollmentId, submission._count._all);
+        }
+
+        const attendanceByStudent = new Map<string, Map<string, number>>();
+        for (const record of attendanceByEnrollment) {
+            const counts = attendanceByStudent.get(record.enrollmentId) ?? new Map<string, number>();
+            counts.set(record.status, record._count._all);
+            attendanceByStudent.set(record.enrollmentId, counts);
+        }
+
+        const openingReports = reportableOpenings.slice(0, 6).map((opening) => {
+            const openingEnrollments = enrollments.filter((enrollment) => enrollment.openingId === opening.id);
+            const openingTasks = dueTaskCounts.get(opening.id) ?? 0;
+            const submitted = openingEnrollments.reduce(
+                (sum, enrollment) => sum + (submittedTaskCounts.get(enrollment.id) ?? 0),
+                0,
+            );
+            const expectedSubmissions = openingEnrollments.length * openingTasks;
+            let attended = 0;
+            let attendanceDenominator = 0;
+            const needsFollowUp = openingEnrollments.filter((enrollment) => {
+                const studentAttendance = attendanceByStudent.get(enrollment.id);
+                const present = studentAttendance?.get('PRESENT') ?? 0;
+                const late = studentAttendance?.get('LATE') ?? 0;
+                const absent = studentAttendance?.get('ABSENT') ?? 0;
+                attended += present + late;
+                attendanceDenominator += present + late + absent;
+                return absent > 0 || (openingTasks > 0 && (submittedTaskCounts.get(enrollment.id) ?? 0) < openingTasks);
+            });
+            return {
+                ...opening,
+                approvedStudentCount: openingEnrollments.length,
+                attendanceRate: attendanceDenominator
+                    ? Math.round((attended / attendanceDenominator) * 100)
+                    : null,
+                taskSubmissionRate: expectedSubmissions
+                    ? Math.min(100, Math.round((submitted / expectedSubmissions) * 100))
+                    : null,
+                needsFollowUpCount: needsFollowUp.length,
+            };
+        });
+
+        const visibleOpenings = openings.slice(0, 6).map(({ instructorGrants: _grants, instructorId: _instructorId, ...opening }) => opening);
+        return {
+            openingCount: openings.length,
+            activeOpeningCount: openings.filter((opening) => opening.status === 'STARTED' || opening.status === 'OPEN').length,
+            approvedStudentCount: enrollments.length,
+            ungradedSubmissionCount,
+            openings: visibleOpenings,
+            openingReports,
+            upcomingSessions,
+        };
+    }
+
     async getStudentCourseAnalytics(userId: string, courseId: string) {
         await this.assertEnrolled(userId, courseId);
 

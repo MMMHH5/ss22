@@ -79,7 +79,15 @@ interface TaskForm {
 
 const emptyForm: TaskForm = { titleAr: '', titleEn: '', descriptionAr: '', descriptionEn: '', dueDate: '', maxScore: '100', moduleId: '', attachmentUrl: '', links: [] };
 
-export default function TasksPanel({ openingId }: { openingId: string }) {
+export default function TasksPanel({
+    openingId,
+    canManageTasks = true,
+    canGrade = true,
+}: {
+    openingId: string;
+    canManageTasks?: boolean;
+    canGrade?: boolean;
+}) {
     const { t, pick, locale } = useI18n();
     const isAr = locale === 'ar';
     const [tasks, setTasks] = useState<Task[] | null>(null);
@@ -97,7 +105,14 @@ export default function TasksPanel({ openingId }: { openingId: string }) {
     const [filterStatus, setFilterStatus] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [peerReviewSubId, setPeerReviewSubId] = useState<string | null>(null);
-    const { data: rosterData } = useFetchData<{ enrollments: { id: string; student: { id: string; email: string } }[] }>(`/openings/${openingId}/roster`);
+    const rosterPath = canGrade
+        ? `/openings/${openingId}/roster`
+        : canManageTasks ? `/tasks/opening/${openingId}/roster` : null;
+    const { data: rosterData } = useFetchData<
+        { enrollments: { id: string; student: { id: string; email: string } }[] }
+        | { id: string; student: { id: string; email: string } }[]
+    >(rosterPath);
+    const enrolledStudents = Array.isArray(rosterData) ? rosterData : (rosterData?.enrollments ?? []);
 
     const filteredTasks = (tasks || []).filter(task => {
         if (filterModule !== 'all' && task.moduleId !== filterModule) return false;
@@ -125,7 +140,9 @@ export default function TasksPanel({ openingId }: { openingId: string }) {
             try {
                 const [res, modRes] = await Promise.all([
                     api.get(`/tasks/opening/${openingId}`),
-                    api.get(`/openings/${openingId}/modules`),
+                    canManageTasks
+                        ? api.get(`/openings/${openingId}/modules`)
+                        : Promise.resolve({ data: [] }),
                 ]);
                 if (active) {
                     setTasks(res.data);
@@ -140,7 +157,7 @@ export default function TasksPanel({ openingId }: { openingId: string }) {
         run();
         return () => { active = false; };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [openingId]);
+    }, [openingId, canManageTasks]);
 
     const openCreate = () => { setEditing(null); setForm(emptyForm); setModalOpen(true); };
     const openEdit = (task: Task) => {
@@ -256,7 +273,7 @@ export default function TasksPanel({ openingId }: { openingId: string }) {
                     <h2 className="text-2xl font-black text-ink tracking-tight">{t('tasks.tasks_title')}</h2>
                     <p className="text-ink-subtle text-sm mt-0.5">{t('tasks.tasks_subtitle')}</p>
                 </div>
-                <BtnPrimary icon={Plus} onClick={openCreate}>{t('tasks.add_task')}</BtnPrimary>
+                {canManageTasks && <BtnPrimary icon={Plus} onClick={openCreate}>{t('tasks.add_task')}</BtnPrimary>}
             </div>
 
             {tasks?.length === 0 && <EmptyPanel icon={ClipboardList} title={t('tasks.no_tasks')} />}
@@ -302,12 +319,16 @@ export default function TasksPanel({ openingId }: { openingId: string }) {
                                     </p>
                                 </div>
                                 <div className="flex items-center gap-1.5 shrink-0">
-                                    <button onClick={() => openEdit(task)} className="admin-action-btn text-ink hover:bg-surface-raised tooltip" title={t('common.edit')}>
-                                        <Pencil size={17} />
-                                    </button>
-                                    <button onClick={() => deleteTask(task)} className="admin-action-btn text-red-800 dark:text-red-400 hover:bg-red-500/10 tooltip" title={t('common.delete')}>
-                                        <Trash2 size={17} />
-                                    </button>
+                                    {canManageTasks && (
+                                        <>
+                                            <button onClick={() => openEdit(task)} className="admin-action-btn text-ink hover:bg-surface-raised tooltip" title={t('common.edit')}>
+                                                <Pencil size={17} />
+                                            </button>
+                                            <button onClick={() => deleteTask(task)} className="admin-action-btn text-red-800 dark:text-red-400 hover:bg-red-500/10 tooltip" title={t('common.delete')}>
+                                                <Trash2 size={17} />
+                                            </button>
+                                        </>
+                                    )}
                                     <button onClick={() => setExpandedId(expanded ? null : task.id)}
                                         className="admin-action-btn text-ink-muted hover:bg-ink/[0.04] tooltip" title={t('tasks.view_submissions')}>
                                         {expanded ? <ChevronUp size={17} /> : <ChevronDown size={17} />}
@@ -377,13 +398,13 @@ export default function TasksPanel({ openingId }: { openingId: string }) {
                                                             </a>
                                                         )}
                                                         <div className="grid sm:grid-cols-[180px_1fr_auto] gap-2 items-end">
-                                                            <div>
+                                                            {canGrade && <div>
                                                                 <label className="block text-xs font-bold text-ink-subtle mb-1">{t('tasks.score')} / {task.maxScore}</label>
                                                                 <input type="number" step="any" min={0} value={savingScore[sub.id] ?? (sub.score != null ? String(sub.score) : '')}
                                                                     onChange={(e) => setSavingScore((p) => ({ ...p, [sub.id]: e.target.value }))}
                                                                     className={inputCls} placeholder={t('tasks.score_placeholder')} />
-                                                            </div>
-                                                            <div>
+                                                            </div>}
+                                                            {canGrade && <div>
                                                                 <label className="block text-xs font-bold text-ink-subtle mb-1">{t('tasks.notes')}</label>
                                                                 <input value={savingNotes[sub.id] ?? (sub.notes ?? '')}
                                                                     onChange={(e) => setSavingNotes((p) => ({ ...p, [sub.id]: e.target.value }))}
@@ -393,19 +414,19 @@ export default function TasksPanel({ openingId }: { openingId: string }) {
                                                                         {t('tasks.current_grade')}: {sub.score}{sub.notes ? ` — ${sub.notes}` : ''}
                                                                     </p>
                                                                 )}
-                                                            </div>
-                                                            <button onClick={() => gradeSubmission(sub)} disabled={savingGrade === sub.id}
+                                                            </div>}
+                                                            {canGrade && <button onClick={() => gradeSubmission(sub)} disabled={savingGrade === sub.id}
                                                                 className="inline-flex items-center gap-1.5 bg-brand-gold text-ink-on-gold text-sm font-bold px-4 py-2.5 rounded-xl hover:bg-brand-gold-light transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
                                                                 {savingGrade === sub.id ? <Loader size={15} className="animate-spin" /> : <Check size={15} />} {t('tasks.grade')}
-                                                            </button>
+                                                            </button>}
                                                         </div>
-                                                        <button
+                                                        {canGrade && <button
                                                             onClick={() => setPeerReviewSubId(peerReviewSubId === sub.id ? null : sub.id)}
                                                             className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-accent hover:text-accent transition cursor-pointer"
                                                         >
                                                             <ClipboardCheck size={14} />
                                                             {peerReviewSubId === sub.id ? (isAr ? 'إخفاء تقييم الأقران' : 'Hide Peer Review') : (isAr ? 'تقييم الأقران' : 'Peer Review')}
-                                                        </button>
+                                                        </button>}
                                                         {peerReviewSubId === sub.id && (
                                                             <div className="mt-4 pt-4 border-t border-line">
                                                                 <PeerReviewPanel taskId={task.id} submissionId={sub.id} />
@@ -417,7 +438,7 @@ export default function TasksPanel({ openingId }: { openingId: string }) {
                                         </div>
                                     )}
                                     {(() => {
-                                        const allStudents = rosterData?.enrollments || [];
+                                        const allStudents = enrolledStudents;
                                         const submittedIds = new Set(task.submissions.map(s => s.enrollment?.student?.id).filter(Boolean));
                                         const missing = allStudents.filter(e => !submittedIds.has(e.student.id));
                                         if (missing.length === 0) return null;
@@ -441,7 +462,7 @@ export default function TasksPanel({ openingId }: { openingId: string }) {
                 })}
             </div>
 
-            {modalOpen && (
+            {canManageTasks && modalOpen && (
                 <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setModalOpen(false)}>
                     <div className="bg-surface rounded-3xl shadow-2xl p-6 lg:p-8 w-full max-w-lg animate-fade-in-up max-h-[90vh] overflow-y-auto overscroll-contain" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-between mb-6">

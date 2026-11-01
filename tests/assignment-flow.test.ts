@@ -133,6 +133,13 @@ function makeHarness(h: {
         prisma as any,
         { logAction: async () => undefined } as any,
         { notify: async () => undefined } as any,
+        {
+            assertCanManageOpening: async (_openingId: string, actorId: string) => {
+                if (actorId !== 'owner') throw new Error('Not allowed to manage tasks');
+                return { id: 'opn-1' };
+            },
+            hasOpeningPermission: async () => false,
+        } as any,
     );
     return { service, calls, writes, prisma };
 }

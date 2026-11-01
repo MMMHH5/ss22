@@ -31,6 +31,17 @@ exactly as they are and `RolesGuard` still runs everywhere: the permission
 layer sits next to them, it does not replace them. The only visible change
 is the **URL prefix** (and the frontend call sites that follow it).
 
+### Batch-scoped instructor grants
+
+The role-level catalog is only the outer gate. The primary instructor assigned
+to a batch retains full teaching access; a secondary instructor must also have
+an `OpeningInstructorGrant` for that specific batch and capability. Course
+managers and admins manage grants through `PUT /openings/:id/instructor-grants`.
+Grants cover task management, grading, sessions/attendance, announcements,
+analytics, and read-only course content. Course content is shared across
+batches, so a batch grant never permits editing it. Batch lifecycle, pricing,
+certificates, calendar, and chat remain outside assistant grants.
+
 ### Security fix shipped alongside
 
 `JwtStrategy` and the chat gateway now refuse tokens carrying `purpose`

@@ -17,6 +17,7 @@ import CourseChat from '@/components/CourseChat';
 import DiscussionForum from '@/components/DiscussionForum';
 import InteractiveQuiz from '@/components/InteractiveQuiz';
 import StudentSessionList, { StudentLiveSession } from '@/components/StudentSessionList';
+import StudentAttendanceHistory from '@/components/StudentAttendanceHistory';
 
 // ---------- Types ----------
 
@@ -755,6 +756,7 @@ export default function CoursePlayer({ courseId }: Props) {
                                     ? t('liveSessions.none_scheduled')
                                     : t('liveSessions.in_person_no_room')}
                             />
+                            {progress?.openingId && <StudentAttendanceHistory openingId={progress.openingId} />}
                         </div>
                     )}
                     {deckTab === 'discussions' && selected && (

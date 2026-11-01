@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Param, Body, Delete, UseGuards, Request, Ip, Post } from '@nestjs/common';
+import { Controller, Get, Patch, Param, Body, Delete, UseGuards, Request, Ip, Post, Put } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { CoursesService } from './courses.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -9,6 +9,7 @@ import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../auth/permissions/permissions';
 import { Role } from '@prisma/client';
 import { UpdateOpeningDto } from './dto/update-opening.dto';
+import { SetOpeningInstructorGrantsDto } from './dto/opening-instructor-grants.dto';
 
 const STAFF_ROLES = [Role.ADMIN, Role.COURSE_MANAGER, Role.INSTRUCTOR];
 
@@ -26,11 +27,31 @@ export class CourseOpeningsController {
         return this.coursesService.listMyOpenings(req.user.userId, req.user.role);
     }
 
-    @ApiOperation({ summary: 'Modules of the course behind an opening (its staff/instructor)' })
+    @ApiOperation({ summary: 'Module titles for an opening (staff, primary instructor, or authorized assistant)' })
     @Roles(Role.INSTRUCTOR, Role.ADMIN, Role.COURSE_MANAGER)
     @Get(':id/modules')
     modules(@Param('id') id: string, @Request() req: any) {
         return this.coursesService.listOpeningModules(id, req.user.userId, req.user.role);
+    }
+
+    @ApiOperation({ summary: 'List secondary instructor permissions for an opening' })
+    @Roles(Role.ADMIN, Role.COURSE_MANAGER)
+    @RequirePermissions(PERMISSIONS.OPENINGS_WRITE)
+    @Get(':id/instructor-grants')
+    listInstructorGrants(@Param('id') id: string) {
+        return this.coursesService.getOpeningInstructorGrants(id);
+    }
+
+    @ApiOperation({ summary: 'Replace secondary instructor permissions for an opening' })
+    @Roles(Role.ADMIN, Role.COURSE_MANAGER)
+    @RequirePermissions(PERMISSIONS.OPENINGS_WRITE)
+    @Put(':id/instructor-grants')
+    setInstructorGrants(
+        @Param('id') id: string,
+        @Body() dto: SetOpeningInstructorGrantsDto,
+        @Request() req: any,
+    ) {
+        return this.coursesService.setOpeningInstructorGrants(id, dto.instructors, req.user.userId);
     }
 
     @ApiOperation({ summary: 'Update an opening (dates, fees, instructor, capacity)' })

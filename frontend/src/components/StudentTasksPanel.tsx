@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from 'react';
+import { isAxiosError } from 'axios';
 import { api, API_BASE_URL, getErrorMessage } from '@/lib/api';
 import { useI18n } from '@/lib/i18n-context';
 import toast from 'react-hot-toast';
@@ -35,9 +36,14 @@ interface TaskItem {
     attachmentUrl?: string | null;
     attachmentName?: string | null;
     attachmentType?: string | null;
+    links?: { url: string; labelAr?: string | null; labelEn?: string | null }[] | null;
     module?: { id: string; titleAr?: string | null; titleEn?: string | null } | null;
     submissions?: SubmissionRow[];
 }
+
+type Props =
+    | { courseId: string; openingId?: never }
+    | { openingId: string; courseId?: never };
 
 function formatFileSize(bytes: number): string {
     if (bytes < 1024) return `${bytes} B`;
@@ -45,11 +51,12 @@ function formatFileSize(bytes: number): string {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export default function StudentTasksPanel({ courseId }: { courseId: string }) {
+export default function StudentTasksPanel({ courseId, openingId }: Props) {
     const { t, pick } = useI18n();
     const [tasks, setTasks] = useState<TaskItem[] | null>(null);
     const [loading, setLoading] = useState(true);
     const [unresolved, setUnresolved] = useState(false);
+    const [loadError, setLoadError] = useState<string | null>(null);
     const [drafts, setDrafts] = useState<Record<string, string>>({});
     const [files, setFiles] = useState<Record<string, SubmittedFile | null>>({});
     const [uploadingId, setUploadingId] = useState<string | null>(null);
@@ -68,23 +75,25 @@ export default function StudentTasksPanel({ courseId }: { courseId: string }) {
                 // read it off `/enrollments/my` meant an enrollment that never
                 // recorded a batch produced "no tasks", and the student was
                 // told the course had no assignments.
-                const res = await api.get(`/tasks/course/${courseId}`);
+                const res = await api.get(openingId ? `/tasks/opening/${openingId}` : `/tasks/course/${courseId}`);
                 if (!active) return;
                 setTasks(res.data || []);
                 setUnresolved(false);
-            } catch (e: any) {
+                setLoadError(null);
+            } catch (e: unknown) {
                 if (!active) return;
-                const status = e?.response?.status;
+                const status = isAxiosError(e) ? e.response?.status : undefined;
                 // 403 here means "enrolled, but not tied to one batch", which is
                 // a different message from "no assignments exist".
-                setUnresolved(status === 403);
+                setUnresolved(!openingId && status === 403);
+                setLoadError(!openingId && status === 403 ? null : getErrorMessage(e) || t('tasks.load_fail'));
                 setTasks([]);
             } finally {
                 if (active) setLoading(false);
             }
         })();
         return () => { active = false; };
-    }, [courseId]);
+    }, [courseId, openingId, t]);
 
     const handleFile = async (taskId: string, file: File | null | undefined) => {
         if (!file) return;
@@ -120,7 +129,7 @@ export default function StudentTasksPanel({ courseId }: { courseId: string }) {
             toast.success(t('tasks.submitted_ok'));
             setDrafts(prev => ({ ...prev, [taskId]: '' }));
             setFiles(prev => ({ ...prev, [taskId]: null }));
-            const res = await api.get(`/tasks/course/${courseId}`);
+            const res = await api.get(openingId ? `/tasks/opening/${openingId}` : `/tasks/course/${courseId}`);
             setTasks(res.data || []);
         } catch (e) {
             toast.error(getErrorMessage(e) || t('tasks.load_fail'));
@@ -141,6 +150,10 @@ export default function StudentTasksPanel({ courseId }: { courseId: string }) {
             {loading ? (
                 <div className="h-48 flex items-center justify-center text-ink">
                     <Loader className="animate-spin" size={32} />
+                </div>
+            ) : loadError ? (
+                <div role="alert" className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm font-bold text-red-600 dark:text-red-400">
+                    {loadError}
                 </div>
             ) : unresolved ? (
                 <div className="text-center text-ink-subtle font-bold py-16">
@@ -164,7 +177,7 @@ export default function StudentTasksPanel({ courseId }: { courseId: string }) {
                                     <div>
                                         {task.module && (
                                             <p className="text-[11px] font-bold text-accent mb-1">
-                                                {pick(task.module as any, 'title')}
+                                                {pick(task.module, 'title')}
                                             </p>
                                         )}
                                         <h3 className="font-bold text-ink">{pick(task, 'title')}</h3>
@@ -179,6 +192,18 @@ export default function StudentTasksPanel({ courseId }: { courseId: string }) {
                                                 {task.attachmentName || t('tasks.attachment')}
                                             </a>
                                         )}
+                                        {task.links?.map((link, index) => (
+                                            <a
+                                                key={`${link.url}-${index}`}
+                                                href={link.url}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="ms-3 inline-flex items-center gap-1.5 text-xs font-bold text-ink underline mt-2"
+                                            >
+                                                <FileText size={13} />
+                                                {pick(link, 'label') || link.url}
+                                            </a>
+                                        ))}
                                     </div>
                                     <div className="flex items-center gap-2 text-xs font-bold">
                                         {task.dueDate && (

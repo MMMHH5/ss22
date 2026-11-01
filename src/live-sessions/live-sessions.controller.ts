@@ -1,5 +1,5 @@
 import {
-    Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, Request,
+    Controller, Get, Post, Put, Patch, Delete, Param, Body, UseGuards, Request,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
@@ -12,6 +12,7 @@ import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../auth/permissions/permissions';
 import { CreateLiveSessionDto } from './dto/live-session.dto';
 import { UpdateLiveSessionDto } from './dto/update-live-session.dto';
+import { SaveSessionAttendanceDto } from './dto/session-attendance.dto';
 
 const STAFF_ROLES = [Role.ADMIN, Role.COURSE_MANAGER, Role.INSTRUCTOR];
 
@@ -69,5 +70,43 @@ export class LiveSessionsController {
         @Request() req: any,
     ) {
         return this.sessions.remove(openingId, id, req.user.userId, req.user.role);
+    }
+
+    @ApiOperation({ summary: "Approved student's attendance history for a batch" })
+    @Roles(Role.STUDENT)
+    @Get('my-attendance')
+    myAttendance(@Param('openingId') openingId: string, @Request() req: any) {
+        return this.sessions.listMyAttendance(openingId, req.user.userId);
+    }
+
+    @ApiOperation({ summary: 'Attendance roster for one session' })
+    @Roles(...STAFF_ROLES)
+    @RequirePermissions(PERMISSIONS.GRADES_READ)
+    @Get(':id/attendance')
+    attendance(
+        @Param('openingId') openingId: string,
+        @Param('id') sessionId: string,
+        @Request() req: any,
+    ) {
+        return this.sessions.listAttendance(openingId, sessionId, req.user.userId, req.user.role);
+    }
+
+    @ApiOperation({ summary: 'Save attendance for enrolled students in one session' })
+    @Roles(...STAFF_ROLES)
+    @RequirePermissions(PERMISSIONS.GRADES_WRITE)
+    @Put(':id/attendance')
+    saveAttendance(
+        @Param('openingId') openingId: string,
+        @Param('id') sessionId: string,
+        @Body() dto: SaveSessionAttendanceDto,
+        @Request() req: any,
+    ) {
+        return this.sessions.saveAttendance(
+            openingId,
+            sessionId,
+            dto.records,
+            req.user.userId,
+            req.user.role,
+        );
     }
 }

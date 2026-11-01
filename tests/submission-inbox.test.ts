@@ -127,7 +127,12 @@ function makeHarness(rows = SUBMISSIONS) {
         },
     };
 
-    const service = new TasksService(prisma as any, { logAction: async () => undefined } as any, { notify: async () => undefined } as any);
+    const service = new TasksService(
+        prisma as any,
+        { logAction: async () => undefined } as any,
+        { notify: async () => undefined } as any,
+        { assertCanManageOpening: async () => ({ id: 'o1' }), hasOpeningPermission: async () => false } as any,
+    );
     return { service, findManyCalls, countCalls, only: () => findManyCalls[0] };
 }
 
@@ -154,9 +159,10 @@ describe('submission inbox: the scope covers both instructor columns', () => {
 
         const where = findManyCalls[0].where;
         const clauses = where.task.opening.is.OR;
-        assert.equal(clauses.length, 2);
+        assert.equal(clauses.length, 3);
         assert.equal(clauses[0].instructorId, 'me', 'the batch we run');
         assert.equal(clauses[1].course.instructorId, 'me', 'the course we own');
+        assert.deepEqual(clauses[2].instructorGrants.some, { instructorId: 'me', canGrade: true });
     });
 
     test('an instructor with no claim at all sees nothing', async () => {

@@ -59,7 +59,7 @@ export class RubricsController {
     @Roles(...STAFF)
     @RequirePermissions(PERMISSIONS.CONTENT_WRITE)
     @Post(':id/assign')
-    assign(@Param('id') id: string, @Body('count') count: number) {
-        return this.svc.assignRandomReviews(id, count || 2);
+    assign(@Param('id') id: string, @Body('count') count: number, @Request() req: any) {
+        return this.svc.assignRandomReviews(id, count || 2, req.user.userId, req.user.role);
     }
 }

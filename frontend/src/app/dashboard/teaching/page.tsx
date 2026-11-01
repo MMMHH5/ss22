@@ -20,13 +20,24 @@ interface MyOpening {
     startDate?: string | null;
     endDate?: string | null;
     enrollmentDeadline?: string | null;
-    price: string;
+    price?: string | null;
     priceOld?: string | null;
     maxStudents?: number | null;
     isPublished: boolean;
     status: string;
     course: { id: string; titleAr?: string | null; titleEn?: string | null };
-    _count?: { enrollments?: number; tasks?: number };
+    access: {
+        canReadContent: boolean;
+        canManageTasks: boolean;
+        canGrade: boolean;
+        canManageSessions: boolean;
+        canManageAnnouncements: boolean;
+        canViewAnalytics: boolean;
+        isPrimaryInstructor: boolean;
+    };
+    instructorId: string;
+    meetLink?: string | null;
+    _count?: { enrollments?: number | null; tasks?: number | null };
 }
 
 interface Course {
@@ -101,7 +112,9 @@ export default function TeachingHubPage() {
         (closeRequests || []).some((r) => r.opening?.id === openingId && r.status === 'PENDING');
 
     const autoCloseId = searchParams?.get('close') ?? null;
-    const autoCloseOpening = autoCloseId && openings ? openings.find((o) => o.id === autoCloseId) : undefined;
+    const autoCloseOpening = autoCloseId && openings
+        ? openings.find((opening) => opening.id === autoCloseId && opening.access.isPrimaryInstructor)
+        : undefined;
     const closeTarget = modal?.type === 'close'
         ? modal.opening
         : (autoCloseOpening && dismissCloseId !== autoCloseId ? autoCloseOpening : undefined);
@@ -109,8 +122,12 @@ export default function TeachingHubPage() {
     const closeModalOnClose = () => { if (autoCloseId) setDismissCloseId(autoCloseId); setModal(null); };
 
     // Stats
-    const totalStudents = (openings || []).reduce((sum, o) => sum + (o._count?.enrollments ?? 0), 0);
-    const totalTasks = (openings || []).reduce((sum, o) => sum + (o._count?.tasks ?? 0), 0);
+    const totalStudents = (openings || [])
+        .filter((opening) => opening.access.canGrade || opening.access.canManageTasks || opening.access.canViewAnalytics)
+        .reduce((sum, opening) => sum + (opening._count?.enrollments ?? 0), 0);
+    const totalTasks = (openings || [])
+        .filter((opening) => opening.access.canManageTasks || opening.access.canGrade || opening.access.canViewAnalytics)
+        .reduce((sum, opening) => sum + (opening._count?.tasks ?? 0), 0);
     const pendingRequests = [...(openRequests || []), ...(closeRequests || [])].filter(r => r.status === 'PENDING').length;
 
     const requestOpen = async () => {
@@ -214,8 +231,10 @@ export default function TeachingHubPage() {
                             {(openings || []).map((o) => {
                                 const isEnded = o.status === 'ENDED';
                                 const closePending = pendingCloseFor(o.id);
-                                const enrollmentCount = o._count?.enrollments ?? 0;
-                                const taskCount = o._count?.tasks ?? 0;
+                                const canViewEnrollmentCount = o.access.canGrade || o.access.canManageTasks || o.access.canViewAnalytics;
+                                const canViewTaskCount = o.access.canManageTasks || o.access.canGrade || o.access.canViewAnalytics;
+                                const enrollmentCount = canViewEnrollmentCount ? (o._count?.enrollments ?? '—') : '—';
+                                const taskCount = canViewTaskCount ? (o._count?.tasks ?? '—') : '—';
                                 return (
                                     <div key={o.id} className="bg-brand-navy border border-white/5 hover:border-brand-gold/20 rounded-2xl overflow-hidden transition-all duration-300 group">
                                         {/* Status bar */}
@@ -243,7 +262,7 @@ export default function TeachingHubPage() {
                                                     <p className="text-[10px] font-bold text-gray-500">{isAr ? 'مهمة' : 'Tasks'}</p>
                                                 </div>
                                                 <div className="bg-brand-navy-dark rounded-xl py-2.5 text-center border border-white/5">
-                                                    <p className="text-lg font-black text-white font-mono">${o.price}</p>
+                                                    <p className="text-lg font-black text-white font-mono">{o.access.isPrimaryInstructor && o.price != null ? `$${o.price}` : '—'}</p>
                                                     <p className="text-[10px] font-bold text-gray-500">{isAr ? 'السعر' : 'Price'}</p>
                                                 </div>
                                             </div>
@@ -260,7 +279,7 @@ export default function TeachingHubPage() {
                                                     className="flex-1 inline-flex items-center justify-center gap-1.5 bg-brand-gold/10 text-brand-gold-light border border-brand-gold/20 text-sm font-bold py-2.5 rounded-xl hover:bg-brand-gold hover:text-black transition-all">
                                                     {isAr ? 'إدارة' : 'Manage'} <ArrowUpRight size={14} />
                                                 </Link>
-                                                {isEnded && (
+                                                {isEnded && o.access.isPrimaryInstructor && (
                                                     <button
                                                         onClick={() => setCertOpening(o)}
                                                         title={isAr ? 'إصدار الشهادات' : 'Issue certificates'}
@@ -269,17 +288,19 @@ export default function TeachingHubPage() {
                                                         <Award size={14} /> {isAr ? 'شهادات' : 'Certs'}
                                                     </button>
                                                 )}
-                                                <button
-                                                    onClick={() => { setReason(''); setModal({ type: 'close', opening: o }); }}
-                                                    disabled={isEnded || closePending}
-                                                    className={`inline-flex items-center justify-center gap-1.5 text-sm font-bold px-4 py-2.5 rounded-xl transition border ${
-                                                        isEnded ? 'text-gray-600 border-white/5 cursor-not-allowed'
-                                                        : closePending ? 'text-brand-gold-light border-brand-gold/20 cursor-not-allowed'
-                                                        : 'text-red-400 border-red-500/20 hover:bg-red-500/10'
-                                                    }`}
-                                                >
-                                                    <Flag size={14} /> {closePending ? (isAr ? 'تم الطلب' : 'Requested') : (isAr ? 'إغلاق' : 'Close')}
-                                                </button>
+                                                {o.access.isPrimaryInstructor && (
+                                                    <button
+                                                        onClick={() => { setReason(''); setModal({ type: 'close', opening: o }); }}
+                                                        disabled={isEnded || closePending}
+                                                        className={`inline-flex items-center justify-center gap-1.5 text-sm font-bold px-4 py-2.5 rounded-xl transition border ${
+                                                            isEnded ? 'text-gray-600 border-white/5 cursor-not-allowed'
+                                                            : closePending ? 'text-brand-gold-light border-brand-gold/20 cursor-not-allowed'
+                                                            : 'text-red-400 border-red-500/20 hover:bg-red-500/10'
+                                                        }`}
+                                                    >
+                                                        <Flag size={14} /> {closePending ? (isAr ? 'تم الطلب' : 'Requested') : (isAr ? 'إغلاق' : 'Close')}
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
                                     </div>

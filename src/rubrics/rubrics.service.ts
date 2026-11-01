@@ -3,17 +3,27 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { GamificationService } from '../gamification/gamification.service';
 import { Role } from '@prisma/client';
+import { CoursesService } from '../courses/courses.service';
 
 @Injectable()
 export class RubricsService {
-    constructor(private prisma: PrismaService, private audit: AuditService, private gamification: GamificationService) {}
+    constructor(
+        private prisma: PrismaService,
+        private audit: AuditService,
+        private gamification: GamificationService,
+        private courses: CoursesService,
+    ) {}
 
     async createRubric(taskId: string, dto: { titleAr: string; titleEn: string; criteria: { titleAr: string; titleEn: string; descriptionAr?: string; descriptionEn?: string; maxScore: number }[] }, userId: string, userRole: Role) {
         const task = await this.prisma.courseTask.findUnique({ where: { id: taskId } });
         if (!task) throw new NotFoundException('Task not found');
         if (userRole === Role.INSTRUCTOR) {
-            const opening = await this.prisma.courseOpening.findUnique({ where: { id: task.openingId } });
-            if (!opening || opening.instructorId !== userId) throw new ForbiddenException('Not your task');
+            await this.courses.assertCanManageOpening(
+                task.openingId,
+                userId,
+                userRole,
+                ['canManageTasks', 'canGrade'],
+            );
         }
         const existing = await this.prisma.rubric.findUnique({ where: { taskId } });
         if (existing) throw new BadRequestException('Task already has a rubric');
@@ -130,7 +140,7 @@ export class RubricsService {
     async getReviewsForSubmission(submissionId: string, actorId: string, actorRole: Role) {
         const submission = await this.prisma.taskSubmission.findUnique({
             where: { id: submissionId },
-            include: { enrollment: { select: { studentId: true, courseId: true } } },
+            include: { enrollment: { select: { studentId: true, courseId: true } }, task: { select: { openingId: true } } },
         });
         if (!submission) throw new NotFoundException('Submission not found');
         // Reviews carry reviewer emails and free-text comments, so this used to
@@ -140,11 +150,12 @@ export class RubricsService {
         if (actorRole === Role.ADMIN || actorRole === Role.COURSE_MANAGER) {
             // oversight
         } else if (actorRole === Role.INSTRUCTOR) {
-            const teaches = await this.prisma.courseOpening.findFirst({
-                where: { courseId: submission.enrollment.courseId, instructorId: actorId },
-                select: { id: true },
-            });
-            if (!teaches) throw new ForbiddenException('Not your course');
+            await this.courses.assertCanManageOpening(
+                submission.task.openingId,
+                actorId,
+                actorRole,
+                'canGrade',
+            );
         } else if (submission.enrollment.studentId === actorId) {
             // own submission
         } else {
@@ -162,9 +173,17 @@ export class RubricsService {
         return { reviews, averageScore: Math.round(avgScore * 10) / 10, count: reviews.length };
     }
 
-    async assignRandomReviews(rubricId: string, countPerSubmission: number) {
+    async assignRandomReviews(rubricId: string, countPerSubmission: number, actorId: string, actorRole: Role) {
         const rubric = await this.prisma.rubric.findUnique({ where: { id: rubricId }, include: { task: true } });
         if (!rubric) throw new NotFoundException('Rubric not found');
+        if (actorRole === Role.INSTRUCTOR) {
+            await this.courses.assertCanManageOpening(
+                rubric.task.openingId,
+                actorId,
+                actorRole,
+                'canGrade',
+            );
+        }
         const submissions = await this.prisma.taskSubmission.findMany({ where: { taskId: rubric.taskId } });
         if (submissions.length < 2) throw new BadRequestException('Need at least 2 submissions');
         const assigned: { submissionId: string; reviewerId: string }[] = [];

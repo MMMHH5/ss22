@@ -5,9 +5,10 @@ import { api, getErrorMessage } from '@/lib/api';
 import { useI18n } from '@/lib/i18n-context';
 import toast from 'react-hot-toast';
 import {
-    Loader, Plus, Pencil, Trash2, X, Video, Clock, Link2, CalendarDays,
+    Loader, Plus, Pencil, Trash2, X, Video, Clock, Link2, CalendarDays, ClipboardCheck,
 } from 'lucide-react';
 import { EmptyPanel, BtnPrimary } from '@/app/dashboard/admin/components';
+import SessionAttendancePanel from '@/components/SessionAttendancePanel';
 
 interface LiveSession {
     id: string;
@@ -56,6 +57,7 @@ export default function LiveSessionManager({ openingId }: { openingId: string })
     const [editing, setEditing] = useState<LiveSession | null>(null);
     const [form, setForm] = useState<SessionForm>(emptyForm);
     const [saving, setSaving] = useState(false);
+    const [attendanceSessionId, setAttendanceSessionId] = useState<string | null>(null);
 
     const load = useCallback(async (silent = false) => {
         if (!silent) setLoading(true);
@@ -213,6 +215,18 @@ export default function LiveSessionManager({ openingId }: { openingId: string })
                                         </p>
                                     </div>
                                     <div className="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setAttendanceSessionId((current) => current === s.id ? null : s.id)}
+                                            aria-expanded={attendanceSessionId === s.id}
+                                            className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border transition ${
+                                                attendanceSessionId === s.id
+                                                    ? 'text-brand-gold-light bg-brand-gold/10 border-brand-gold/20'
+                                                    : 'text-gray-300 bg-white/5 border-white/10 hover:bg-white/10'
+                                            }`}
+                                        >
+                                            <ClipboardCheck size={13} /> {isAr ? 'الحضور' : 'Attendance'}
+                                        </button>
                                         {s.meetLink && (
                                             <a
                                                 href={s.meetLink}
@@ -238,6 +252,9 @@ export default function LiveSessionManager({ openingId }: { openingId: string })
                                         </button>
                                     </div>
                                 </div>
+                                {attendanceSessionId === s.id && (
+                                    <SessionAttendancePanel openingId={openingId} sessionId={s.id} />
+                                )}
                             </div>
                         );
                     })}

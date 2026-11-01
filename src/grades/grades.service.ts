@@ -2,12 +2,14 @@ import { Injectable, NotFoundException, BadRequestException, ForbiddenException 
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { Role } from '@prisma/client';
+import { CoursesService } from '../courses/courses.service';
 
 @Injectable()
 export class GradesService {
     constructor(
         private prisma: PrismaService,
         private audit: AuditService,
+        private courses: CoursesService,
     ) { }
 
     private async getOpeningOrThrow(openingId: string) {
@@ -20,10 +22,8 @@ export class GradesService {
     }
 
     // Instructors may only manage (roster/assessments/grades) openings assigned to them.
-    private assertCanManageOpening(opening: { instructorId: string }, actorId: string, actorRole: Role) {
-        if (actorRole === Role.ADMIN || actorRole === Role.COURSE_MANAGER) return;
-        if (actorRole === Role.INSTRUCTOR && opening.instructorId === actorId) return;
-        throw new ForbiddenException('You are not allowed to manage this opening');
+    private async assertCanManageOpening(openingId: string, actorId: string, actorRole: Role) {
+        return this.courses.assertCanManageOpening(openingId, actorId, actorRole, 'canGrade');
     }
 
     // Assessments/grades are tied to an opening via enrollment/assessment; validate the instructor owns the opening.
@@ -37,12 +37,12 @@ export class GradesService {
             return;
         }
         const opening = await this.getOpeningOrThrow(enrollment.openingId);
-        this.assertCanManageOpening(opening, actorId, actorRole);
+        await this.assertCanManageOpening(opening.id, actorId, actorRole);
     }
 
     async getRoster(openingId: string, actorId: string, actorRole: Role) {
         const opening = await this.getOpeningOrThrow(openingId);
-        this.assertCanManageOpening(opening, actorId, actorRole);
+        await this.assertCanManageOpening(openingId, actorId, actorRole);
 
         const [assessments, enrollments] = await Promise.all([
             this.prisma.assessment.findMany({
@@ -80,7 +80,7 @@ export class GradesService {
 
     async listAssessments(openingId: string, actorId: string, actorRole: Role) {
         const opening = await this.getOpeningOrThrow(openingId);
-        this.assertCanManageOpening(opening, actorId, actorRole);
+        await this.assertCanManageOpening(openingId, actorId, actorRole);
         return this.prisma.assessment.findMany({
             where: { openingId },
             orderBy: { orderIndex: 'asc' },
@@ -89,7 +89,7 @@ export class GradesService {
 
     async createAssessment(openingId: string, dto: { nameAr: string; nameEn: string; maxScore?: number; orderIndex?: number }, actorId: string, actorRole: Role) {
         const opening = await this.getOpeningOrThrow(openingId);
-        this.assertCanManageOpening(opening, actorId, actorRole);
+        await this.assertCanManageOpening(openingId, actorId, actorRole);
         if (!dto.nameAr || !dto.nameEn) {
             throw new BadRequestException('Assessment name (AR/EN) is required');
         }
@@ -114,7 +114,7 @@ export class GradesService {
         const existing = await this.prisma.assessment.findUnique({ where: { id: assessmentId } });
         if (!existing) throw new NotFoundException('Assessment not found');
         const opening = await this.getOpeningOrThrow(existing.openingId);
-        this.assertCanManageOpening(opening, actorId, actorRole);
+        await this.assertCanManageOpening(opening.id, actorId, actorRole);
         if (dto.maxScore != null && dto.maxScore <= 0) {
             throw new BadRequestException('Max score must be greater than 0');
         }
@@ -135,7 +135,7 @@ export class GradesService {
         const existing = await this.prisma.assessment.findUnique({ where: { id: assessmentId } });
         if (!existing) throw new NotFoundException('Assessment not found');
         const opening = await this.getOpeningOrThrow(existing.openingId);
-        this.assertCanManageOpening(opening, actorId, actorRole);
+        await this.assertCanManageOpening(opening.id, actorId, actorRole);
         const deleted = await this.prisma.assessment.delete({ where: { id: assessmentId } });
         await this.audit.logAction(`Deleted assessment ${assessmentId} (Opening ${existing.openingId})`, undefined, actorId);
         return deleted;
@@ -161,7 +161,7 @@ export class GradesService {
         }
         if (enrollment.openingId) {
             const opening = await this.getOpeningOrThrow(enrollment.openingId);
-            this.assertCanManageOpening(opening, actorId, actorRole);
+            await this.assertCanManageOpening(opening.id, actorId, actorRole);
         } else if (actorRole === Role.INSTRUCTOR) {
             throw new ForbiddenException('You are not allowed to manage grades for this enrollment');
         }

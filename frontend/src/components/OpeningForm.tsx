@@ -10,6 +10,7 @@ import { useI18n } from '@/lib/i18n-context';
 import toast from 'react-hot-toast';
 import { Loader } from 'lucide-react';
 import { PageHeader } from '@/app/dashboard/admin/components';
+import OpeningInstructorPermissions from '@/components/admin/OpeningInstructorPermissions';
 
 interface Course { id: string; titleAr?: string | null; titleEn?: string | null; }
 interface Instructor { id: string; email: string; role: string; }
@@ -52,6 +53,7 @@ export default function OpeningForm({ courseId, openingId }: { courseId: string;
     // The link only means anything for an online batch, so the field appears
     // with the mode instead of sitting there as a dead input.
     const deliveryMode = watch('deliveryMode');
+    const primaryInstructorId = watch('instructorId');
 
     useEffect(() => {
         if (!openingId) return;
@@ -202,6 +204,13 @@ export default function OpeningForm({ courseId, openingId }: { courseId: string;
                         </select>
                         {errors.instructorId && <p className="text-red-500 text-xs mt-1">{errors.instructorId.message}</p>}
                     </section>
+
+                    {openingId && (
+                        <OpeningInstructorPermissions
+                            openingId={openingId}
+                            primaryInstructorId={primaryInstructorId}
+                        />
+                    )}
 
                     <section className="border-t border-white/10 pt-8 mt-8">
                         <h3 className="text-xl font-black text-white mb-1">{t('opening.section_label')}</h3>

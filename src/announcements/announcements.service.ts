@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { Role } from '@prisma/client';
 import { NotificationsService } from '../notifications/notifications.service';
+import { CoursesService } from '../courses/courses.service';
 
 @Injectable()
 export class AnnouncementsService {
@@ -10,14 +11,11 @@ export class AnnouncementsService {
         private prisma: PrismaService,
         private audit: AuditService,
         private notifications: NotificationsService,
+        private courses: CoursesService,
     ) {}
 
     private async assertCanManageOpening(openingId: string, actorId: string, actorRole: Role) {
-        const opening = await this.prisma.courseOpening.findUnique({ where: { id: openingId } });
-        if (!opening) throw new NotFoundException('Opening not found');
-        if (actorRole === Role.ADMIN || actorRole === Role.COURSE_MANAGER) return opening;
-        if (actorRole === Role.INSTRUCTOR && opening.instructorId === actorId) return opening;
-        throw new ForbiddenException('You are not allowed to manage announcements for this opening');
+        return this.courses.assertCanManageOpening(openingId, actorId, actorRole, 'canManageAnnouncements');
     }
 
     async createAnnouncement(openingId: string, dto: {
@@ -54,9 +52,12 @@ export class AnnouncementsService {
         if (!opening) throw new NotFoundException('Opening not found');
 
         const isStaff = actorRole === Role.ADMIN || actorRole === Role.COURSE_MANAGER ||
-            (actorRole === Role.INSTRUCTOR && opening.instructorId === actorId);
+            actorRole === Role.INSTRUCTOR;
         const isStudent = actorRole === Role.STUDENT;
 
+        if (actorRole === Role.INSTRUCTOR) {
+            await this.assertCanManageOpening(openingId, actorId, actorRole);
+        }
         if (!isStaff && !isStudent) {
             throw new ForbiddenException('Not allowed to view announcements for this opening');
         }
@@ -87,9 +88,12 @@ export class AnnouncementsService {
         if (!announcement) throw new NotFoundException('Announcement not found');
 
         const isStaff = actorRole === Role.ADMIN || actorRole === Role.COURSE_MANAGER ||
-            (actorRole === Role.INSTRUCTOR && announcement.opening.instructorId === actorId);
+            actorRole === Role.INSTRUCTOR;
         const isStudent = actorRole === Role.STUDENT;
 
+        if (actorRole === Role.INSTRUCTOR) {
+            await this.assertCanManageOpening(announcement.opening.id, actorId, actorRole);
+        }
         if (!isStaff && !isStudent) {
             throw new ForbiddenException('Not allowed to view this announcement');
         }
@@ -109,12 +113,15 @@ export class AnnouncementsService {
     }, actorId: string, actorRole: Role) {
         const announcement = await this.prisma.announcement.findUnique({
             where: { id: announcementId },
-            include: { opening: { select: { instructorId: true } } },
+            include: { opening: { select: { id: true, instructorId: true } } },
         });
         if (!announcement) throw new NotFoundException('Announcement not found');
 
         const isStaff = actorRole === Role.ADMIN || actorRole === Role.COURSE_MANAGER;
-        const isInstructor = actorRole === Role.INSTRUCTOR && announcement.opening.instructorId === actorId;
+        if (actorRole === Role.INSTRUCTOR) {
+            await this.assertCanManageOpening(announcement.opening.id, actorId, actorRole);
+        }
+        const isInstructor = actorRole === Role.INSTRUCTOR;
         if (!isStaff && !isInstructor) {
             throw new ForbiddenException('You are not allowed to update this announcement');
         }
@@ -136,12 +143,15 @@ export class AnnouncementsService {
     async deleteAnnouncement(announcementId: string, actorId: string, actorRole: Role) {
         const announcement = await this.prisma.announcement.findUnique({
             where: { id: announcementId },
-            include: { opening: { select: { instructorId: true } } },
+            include: { opening: { select: { id: true, instructorId: true } } },
         });
         if (!announcement) throw new NotFoundException('Announcement not found');
 
         const isStaff = actorRole === Role.ADMIN || actorRole === Role.COURSE_MANAGER;
-        const isInstructor = actorRole === Role.INSTRUCTOR && announcement.opening.instructorId === actorId;
+        if (actorRole === Role.INSTRUCTOR) {
+            await this.assertCanManageOpening(announcement.opening.id, actorId, actorRole);
+        }
+        const isInstructor = actorRole === Role.INSTRUCTOR;
         if (!isStaff && !isInstructor) {
             throw new ForbiddenException('You are not allowed to delete this announcement');
         }
@@ -153,12 +163,15 @@ export class AnnouncementsService {
     async togglePublish(announcementId: string, actorId: string, actorRole: Role) {
         const announcement = await this.prisma.announcement.findUnique({
             where: { id: announcementId },
-            include: { opening: { select: { instructorId: true } } },
+            include: { opening: { select: { id: true, instructorId: true } } },
         });
         if (!announcement) throw new NotFoundException('Announcement not found');
 
         const isStaff = actorRole === Role.ADMIN || actorRole === Role.COURSE_MANAGER;
-        const isInstructor = actorRole === Role.INSTRUCTOR && announcement.opening.instructorId === actorId;
+        if (actorRole === Role.INSTRUCTOR) {
+            await this.assertCanManageOpening(announcement.opening.id, actorId, actorRole);
+        }
+        const isInstructor = actorRole === Role.INSTRUCTOR;
         if (!isStaff && !isInstructor) {
             throw new ForbiddenException('You are not allowed to update this announcement');
         }

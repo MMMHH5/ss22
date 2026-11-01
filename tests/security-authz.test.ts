@@ -52,7 +52,10 @@ describe('SECURITY: peer review cannot cross submissions or bypass self-review',
                 create: async (args: any) => { createdData = args.data; return args.data; },
             },
         };
-        const svc = new RubricsService(prisma as never, audit, gamification);
+        const courses = {
+            assertCanManageOpening: async () => ({ id: 'opening-1' }),
+        };
+        const svc = new RubricsService(prisma as never, audit, gamification, courses as never);
         return { svc, created: () => createdData };
     };
 
@@ -128,12 +131,19 @@ describe('SECURITY: reading reviews requires standing on the submission', () => 
                 findUnique: async () => ({
                     id: 'sub-1',
                     enrollment: { studentId: over.ownerId ?? 'student-b', courseId: over.courseId ?? 'course-1' },
-                }),
+                task: { openingId: 'opening-1' },
+            }),
             },
             courseOpening: { findFirst: async () => (over.teaches ? { id: 'o1' } : null) },
             peerReview: { findMany: async () => [{ id: 'pr1', commentAr: 'feedback' }] },
         };
-        const svc = new RubricsService(prisma as never, audit, gamification);
+        const courses = {
+            assertCanManageOpening: async () => {
+                if (!over.teaches) throw new ForbiddenException('Not your opening');
+                return { id: 'opening-1' };
+            },
+        };
+        const svc = new RubricsService(prisma as never, audit, gamification, courses as never);
         return svc;
     };
 

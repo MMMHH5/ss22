@@ -53,4 +53,12 @@ export class AnalyticsController {
     getCourse(@Param('courseId') courseId: string, @Request() req: any) {
         return this.svc.getCourseAnalytics(courseId, req.user.userId, req.user.role);
     }
+
+    @ApiOperation({ summary: "Instructor's teaching dashboard summary" })
+    @Roles(Role.INSTRUCTOR)
+    @RequirePermissions(PERMISSIONS.ANALYTICS_READ)
+    @Get('instructor-dashboard')
+    getInstructorDashboard(@Request() req: any) {
+        return this.svc.getInstructorDashboard(req.user.userId);
+    }
 }

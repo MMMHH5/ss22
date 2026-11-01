@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { StatCard } from '@/app/dashboard/admin/components';
 import StudentAnnouncements from '@/components/StudentAnnouncements';
 import GamificationPanel from '@/components/GamificationPanel';
+import InstructorDashboard from '@/components/InstructorDashboard';
 import LearningAnalytics from '@/components/LearningAnalytics';
 import LearningPathList from '@/components/LearningPathList';
 import AnnouncementBanner from '@/components/AnnouncementBanner';
@@ -27,10 +28,11 @@ export default function DashboardPage() {
     const { user } = useAuth();
     const { t } = useI18n();
 
+    const isInstructor = user?.role === 'INSTRUCTOR';
     const canSeePending = user && (user.role === 'FINANCE' || user.role === 'ADMIN');
-    const { data: coursesData, loading: coursesLoading, error: coursesError } = useFetchData<unknown[]>('/courses');
+    const { data: coursesData, loading: coursesLoading, error: coursesError } = useFetchData<unknown[]>(isInstructor ? null : '/courses');
     const { data: pending, loading: pendingLoading } = useFetchData<unknown[]>(canSeePending ? '/enrollments/pending' : null);
-    const { data: health } = useFetchData<HealthResponse>('/health');
+    const { data: health } = useFetchData<HealthResponse>(isInstructor ? null : '/health');
     const { data: me } = useFetchData<MeProfile>('/users/me');
 
     if (!user) return null;
@@ -91,11 +93,13 @@ export default function DashboardPage() {
             </div>
 
             {/* Metrics Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-in-up">
-                {metrics.map((m) => (
-                    <StatCard key={m.label} icon={m.icon} color={m.color} value={m.value} label={m.label} accent />
-                ))}
-            </div>
+            {!isInstructor && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-in-up">
+                    {metrics.map((m) => (
+                        <StatCard key={m.label} icon={m.icon} color={m.color} value={m.value} label={m.label} accent />
+                    ))}
+                </div>
+            )}
 
             {/* Error or Dashboard specific elements */}
             {coursesError && (
@@ -152,6 +156,8 @@ export default function DashboardPage() {
                         <LearningAnalytics />
                         <LearningPathList mode="browse" />
                     </>
+                ) : user.role === 'INSTRUCTOR' ? (
+                    <InstructorDashboard />
                 ) : (
                     <div className="bg-white dark:bg-brand-navy-dark border border-gray-200 dark:border-white/5 rounded-3xl p-4 sm:p-6 lg:p-8 min-h-[400px] shadow-sm">
                         <h3 className="text-xl font-black text-brand-navy dark:text-white mb-6">{t('dashboard.recent_activity')}</h3>

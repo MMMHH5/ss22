@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { Role, Prisma } from '@prisma/client';
 import { NotificationsService } from '../notifications/notifications.service';
+import { CoursesService } from '../courses/courses.service';
 
 @Injectable()
 export class TasksService {
@@ -10,6 +11,7 @@ export class TasksService {
         private prisma: PrismaService,
         private audit: AuditService,
         private notifications: NotificationsService,
+        private courses: CoursesService,
     ) { }
 
     private async getTaskOrThrow(taskId: string) {
@@ -18,12 +20,18 @@ export class TasksService {
         return task;
     }
 
-    private async assertCanManageOpening(openingId: string, actorId: string, actorRole: Role) {
-        const opening = await this.prisma.courseOpening.findUnique({ where: { id: openingId } });
+    private async assertCanManageOpening(
+        openingId: string,
+        actorId: string,
+        actorRole: Role,
+        permission: 'canManageTasks' | 'canGrade' | Array<'canManageTasks' | 'canGrade'> = 'canManageTasks',
+    ) {
+        const opening = await this.prisma.courseOpening.findUnique({
+            where: { id: openingId },
+            select: { id: true, courseId: true },
+        });
         if (!opening) throw new NotFoundException('Opening not found');
-        if (actorRole === Role.ADMIN || actorRole === Role.COURSE_MANAGER) return opening;
         if (actorRole === Role.INSTRUCTOR) {
-            if (opening.instructorId === actorId) return opening;
             // The course's own instructor is a separate column from the batch's
             // instructor. Without this, the instructor of record was refused
             // "not allowed" when they tried to set the work for their own
@@ -34,7 +42,22 @@ export class TasksService {
             });
             if (owns) return opening;
         }
-        throw new ForbiddenException('You are not allowed to manage tasks for this opening');
+        return this.courses.assertCanManageOpening(openingId, actorId, actorRole, permission);
+    }
+
+    private async hasGradeAccess(openingId: string, actorId: string, actorRole: Role) {
+        if (actorRole === Role.ADMIN || actorRole === Role.COURSE_MANAGER) return true;
+        if (actorRole !== Role.INSTRUCTOR) return false;
+        if (await this.courses.hasOpeningPermission(openingId, actorId, actorRole, ['canGrade'])) return true;
+        const opening = await this.prisma.courseOpening.findUnique({
+            where: { id: openingId },
+            select: { courseId: true },
+        });
+        if (!opening) return false;
+        return !!(await this.prisma.course.findFirst({
+            where: { id: opening.courseId, instructorId: actorId },
+            select: { id: true },
+        }));
     }
 
     /**
@@ -193,8 +216,12 @@ export class TasksService {
             })
             : null;
 
+        const hasDelegatedAccess = actorRole === Role.INSTRUCTOR
+            ? await this.courses.hasOpeningPermission(openingId, actorId, actorRole, ['canManageTasks', 'canGrade'])
+            : false;
         const isStaff = actorRole === Role.ADMIN || actorRole === Role.COURSE_MANAGER ||
-            (actorRole === Role.INSTRUCTOR && (opening.instructorId === actorId || !!ownsCourse));
+            (actorRole === Role.INSTRUCTOR && (!!ownsCourse || hasDelegatedAccess));
+        const canGrade = isStaff && await this.hasGradeAccess(openingId, actorId, actorRole);
         const isStudent = actorRole === Role.STUDENT;
 
         if (!isStaff && !isStudent) {
@@ -224,8 +251,25 @@ export class TasksService {
         if (!isStaff) return tasks;
         return tasks.map(task => ({
             ...task,
-            submissions: task.submissions.map(s => this.decorateSubmission(s as any)),
+            submissions: task.submissions.map((submission) => {
+                const decorated = this.decorateSubmission(submission as any);
+                if (canGrade) return decorated;
+                const { score: _score, notes: _notes, ...withoutGrade } = decorated;
+                return withoutGrade;
+            }),
         }));
+    }
+
+    async getTaskRoster(openingId: string, actorId: string, actorRole: Role) {
+        await this.assertCanManageOpening(openingId, actorId, actorRole, 'canManageTasks');
+        return this.prisma.enrollment.findMany({
+            where: { openingId, status: 'APPROVED' },
+            orderBy: { createdAt: 'asc' },
+            select: {
+                id: true,
+                student: { select: { id: true, email: true } },
+            },
+        });
     }
 
     async updateTask(taskId: string, dto: {
@@ -396,13 +440,19 @@ export class TasksService {
 
     async getSubmissions(taskId: string, actorId: string, actorRole: Role) {
         const task = await this.getTaskOrThrow(taskId);
-        await this.assertCanManageOpening(task.openingId, actorId, actorRole);
+        await this.assertCanManageOpening(task.openingId, actorId, actorRole, ['canManageTasks', 'canGrade']);
         const rows = await this.prisma.taskSubmission.findMany({
             where: { taskId },
             include: { enrollment: { select: { id: true, student: { select: { id: true, email: true, metadata: true } } } } },
             orderBy: { submittedAt: 'desc' },
         });
-        return rows.map(s => this.decorateSubmission(s as any));
+        const canGrade = await this.hasGradeAccess(task.openingId, actorId, actorRole);
+        return rows.map((row) => {
+            const decorated = this.decorateSubmission(row as any);
+            if (canGrade) return decorated;
+            const { score: _score, notes: _notes, ...withoutGrade } = decorated;
+            return withoutGrade;
+        });
     }
 
     /**
@@ -456,7 +506,13 @@ export class TasksService {
         const skip = Math.min(Number.isFinite(parsedSkip) && parsedSkip > 0 ? Math.trunc(parsedSkip) : 0, 5000);
 
         const opening: Prisma.CourseOpeningWhereInput = actorRole === Role.INSTRUCTOR
-            ? { OR: [{ instructorId: actorId }, { course: { instructorId: actorId } }] }
+            ? {
+                OR: [
+                    { instructorId: actorId },
+                    { course: { instructorId: actorId } },
+                    { instructorGrants: { some: { instructorId: actorId, canGrade: true } } },
+                ],
+            }
             : {};
         if (opts.courseId) opening.courseId = opts.courseId;
         if (opts.openingId) opening.id = opts.openingId;
@@ -528,7 +584,7 @@ export class TasksService {
             include: { task: true, enrollment: { select: { studentId: true } } },
         });
         if (!submission) throw new NotFoundException('Submission not found');
-        await this.assertCanManageOpening(submission.task.openingId, actorId, actorRole);
+        await this.assertCanManageOpening(submission.task.openingId, actorId, actorRole, 'canGrade');
         if (score != null && (isNaN(score) || score < 0)) {
             throw new BadRequestException('Score must be a non-negative number');
         }

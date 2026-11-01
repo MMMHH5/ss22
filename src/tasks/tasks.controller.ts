@@ -50,6 +50,14 @@ export class TasksController {
         return this.tasksService.listTasks(openingId, req.user.userId, req.user.role);
     }
 
+    @ApiOperation({ summary: 'List approved students without grade details for task management' })
+    @Roles(...STAFF_ROLES)
+    @RequirePermissions(PERMISSIONS.CONTENT_READ)
+    @Get('opening/:openingId/roster')
+    taskRoster(@Param('openingId') openingId: string, @Request() req: any) {
+        return this.tasksService.getTaskRoster(openingId, req.user.userId, req.user.role);
+    }
+
     @ApiOperation({ summary: 'Create a task for an opening (instructor of the opening or staff)' })
     @ApiResponse({ status: 201, description: 'Task created.' })
     @Roles(...STAFF_ROLES)
