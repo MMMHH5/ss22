@@ -196,6 +196,7 @@ model User {
   points                    UserPoints?
   pointLogs                 PointLog[]
   learningPathsCreated      LearningPath[]
+  learningPathEnrollments   LearningPathEnrollment[]
   learningSessions          LearningSession[]
   peerReviewsGiven          PeerReview[]
   announcementBoardPosts    AnnouncementBoard[]
@@ -1549,9 +1550,24 @@ model LearningPath {
   creatorId String
   creator   User   @relation(fields: [creatorId], references: [id], onDelete: Restrict)
 
-  courses LearningPathCourse[]
+  courses     LearningPathCourse[]
+  enrollments LearningPathEnrollment[]
 
   @@index([isPublished])
+}
+
+model LearningPathEnrollment {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  pathId    String
+  path      LearningPath @relation(fields: [pathId], references: [id], onDelete: Cascade)
+  studentId String
+  student   User         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([pathId, studentId])
+  @@index([studentId, createdAt])
 }
 
 model LearningPathCourse {

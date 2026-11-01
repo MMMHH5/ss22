@@ -52,6 +52,19 @@ interface CourseRoster {
     enrollments: RosterEnrollment[];
 }
 
+interface CourseLessonDetail {
+    id: string;
+    titleAr: string;
+    titleEn: string;
+    descriptionAr?: string | null;
+    descriptionEn?: string | null;
+    videoUrl?: string | null;
+    durationMinutes?: number | null;
+    outcomes?: { descriptionAr?: string | null; descriptionEn?: string | null }[];
+    files?: { url: string; nameAr?: string | null; nameEn?: string | null }[] | null;
+    links?: { url: string; labelAr?: string | null; labelEn?: string | null }[] | null;
+}
+
 /** Mirror of the Course scalars + collection relations from GET /courses/:id. */
 interface CourseDetail {
     id: string;
@@ -65,6 +78,7 @@ interface CourseDetail {
     syllabusEn?: string | null;
     durationAr?: string | null;
     durationEn?: string | null;
+    contentType?: string | null;
     categoryAr?: string | null;
     categoryEn?: string | null;
     level?: string | null;
@@ -72,6 +86,7 @@ interface CourseDetail {
     hoursOfContent?: number | null;
     coverImageUrl?: string | null;
     introVideoUrl?: string | null;
+    videoFileUrl?: string | null;
     createdAt?: string | null;
     certificateIssued?: boolean | null;
     quizzesIncluded?: boolean | null;
@@ -100,6 +115,10 @@ interface CourseDetail {
     objectives?: { objectiveAr?: string | null; objectiveEn?: string | null }[];
     prerequisites?: { prerequisiteAr?: string | null; prerequisiteEn?: string | null }[];
     audiences?: { audienceAr?: string | null; audienceEn?: string | null }[];
+    faqs?: { questionAr?: string | null; questionEn?: string | null; answerAr?: string | null; answerEn?: string | null }[];
+    gallery?: { url: string; altAr?: string | null; altEn?: string | null }[];
+    modules?: CourseLessonDetail[];
+    chapters?: { id: string; titleAr: string; titleEn: string; modules?: CourseLessonDetail[] }[];
     _count?: { enrollments?: number; modules?: number };
 }
 
@@ -137,6 +156,66 @@ const PAYMENT_TONE: Record<string, Tone> = {
     CANCELLED: 'gray',
 };
 
+function LessonDetails({
+    lesson,
+    index,
+    pick,
+    t,
+}: {
+    lesson: CourseLessonDetail;
+    index: number;
+    pick: (obj: unknown, field: string) => string | undefined;
+    t: (key: string) => string;
+}) {
+    const files = lesson.files ?? [];
+    const links = lesson.links ?? [];
+
+    return (
+        <article className="rounded-lg border border-gray-200 p-3 dark:border-white/10">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+                <h6 className="text-sm font-bold text-brand-navy dark:text-gray-100">
+                    {index}. {pick(lesson, 'title')}
+                </h6>
+                <div className="flex flex-wrap gap-2 text-[10px] font-bold text-gray-500 dark:text-gray-400">
+                    {lesson.durationMinutes != null && <span>{lesson.durationMinutes} {t('admin.panel_lesson_duration')}</span>}
+                </div>
+            </div>
+            {pick(lesson, 'description') && (
+                <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-gray-600 dark:text-gray-300">{pick(lesson, 'description')}</p>
+            )}
+            {lesson.videoUrl && (
+                <a href={lesson.videoUrl} target="_blank" rel="noreferrer" className="mt-2 block break-all text-xs font-bold text-brand-navy-light underline dark:text-brand-gold-light">
+                    {t('courseDetail.video_lesson')}: {lesson.videoUrl}
+                </a>
+            )}
+            {(lesson.outcomes?.length ?? 0) > 0 && (
+                <div className="mt-3">
+                    <p className="mb-1 text-[10px] font-black uppercase tracking-wide text-gray-500">{t('admin.panel_lesson_outcomes')}</p>
+                    <ul className="space-y-1">
+                        {lesson.outcomes?.map((outcome, outcomeIndex) => (
+                            <li key={outcomeIndex} className="text-xs text-gray-600 dark:text-gray-300">{pick(outcome, 'description')}</li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+            {(files.length > 0 || links.length > 0) && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                    {files.map((file, fileIndex) => (
+                        <a key={`file-${fileIndex}`} href={file.url} target="_blank" rel="noreferrer" className="max-w-full truncate rounded-md bg-gray-100 px-2.5 py-1 text-[11px] font-bold text-brand-navy-light underline dark:bg-white/5 dark:text-brand-gold-light">
+                            {pick(file, 'name') || file.url}
+                        </a>
+                    ))}
+                    {links.map((link, linkIndex) => (
+                        <a key={`link-${linkIndex}`} href={link.url} target="_blank" rel="noreferrer" className="max-w-full truncate rounded-md bg-gray-100 px-2.5 py-1 text-[11px] font-bold text-brand-navy-light underline dark:bg-white/5 dark:text-brand-gold-light">
+                            {pick(link, 'label') || link.url}
+                        </a>
+                    ))}
+                </div>
+            )}
+        </article>
+    );
+}
+
 export default function CourseAdminPanel({ courseId }: { courseId: string }) {
     const { t, pick, locale } = useI18n();
     const [statusFilter, setStatusFilter] = useState<'ALL' | EnrollmentStatus>('ALL');
@@ -144,8 +223,8 @@ export default function CourseAdminPanel({ courseId }: { courseId: string }) {
 
     // Both requests are deferred until the panel is actually mounted, so
     // listing a page of courses does not fan out into N detail calls.
-    const { data: course, loading: courseLoading } = useFetchData<CourseDetail>(`/courses/${courseId}`);
-    const { data: roster, loading: rosterLoading } = useFetchData<CourseRoster>(`/enrollments/course/${courseId}`);
+    const { data: course, loading: courseLoading, error: courseError } = useFetchData<CourseDetail>(`/courses/${courseId}?includeUnpublished=true`);
+    const { data: roster, loading: rosterLoading, error: rosterError } = useFetchData<CourseRoster>(`/enrollments/course/${courseId}`);
 
     const fmtDate = (d?: string | null) => (d ? new Date(d).toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-GB') : '—');
     const fmtNum = (n: number) => new Intl.NumberFormat(locale === 'ar' ? 'ar-EG' : 'en-US').format(n);
@@ -176,6 +255,9 @@ export default function CourseAdminPanel({ courseId }: { courseId: string }) {
     if (courseLoading) {
         return <div className="p-6 text-sm font-bold text-gray-500 dark:text-gray-400">{t('admin.loading_courses')}</div>;
     }
+    if (courseError) {
+        return <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400">{courseError}</div>;
+    }
 
     return (
         <div className="space-y-6">
@@ -192,15 +274,19 @@ export default function CourseAdminPanel({ courseId }: { courseId: string }) {
                                 { k: 'admin.col_level', v: course?.level ? t(`course.level_${String(course.level).toLowerCase()}`) : null },
                                 { k: 'courseDetail.language_label', v: course?.language },
                                 { k: 'courseDetail.hours_label', v: course?.hoursOfContent ? `${course.hoursOfContent}` : null },
+                                { k: 'createCourse.duration_label', v: pick(course, 'duration') },
+                                { k: 'createCourse.content_type_label', v: course?.contentType ? t(`createCourse.content_type_${course.contentType.toLowerCase()}`) : null },
                                 { k: 'course.modules', v: course?._count?.modules },
                                 { k: 'admin.col_instructor', v: course?.instructor?.email },
                                 { k: 'admin.col_joined', v: course?.createdAt ? fmtDate(course.createdAt) : null },
                                 { k: 'admin.panel_batch_count', v: openings.length },
                                 { k: 'admin.col_enrollments', v: totalStudents },
+                                { k: 'admin.panel_gallery_count', v: course?.gallery?.length },
+                                { k: 'admin.panel_faq_count', v: course?.faqs?.length },
                             ].map((row) => (
                                 <div key={row.k}>
                                     <dt className="text-[11px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500">{t(row.k)}</dt>
-                                    <dd className="font-bold text-brand-navy dark:text-gray-200 truncate">{row.v || '—'}</dd>
+                                    <dd className="font-bold text-brand-navy dark:text-gray-200 truncate">{row.v ?? '—'}</dd>
                                 </div>
                             ))}
                         </dl>
@@ -234,6 +320,76 @@ export default function CourseAdminPanel({ courseId }: { courseId: string }) {
                             </ul>
                         </div>
                     ))}
+
+                    {(course?.coverImageUrl || course?.introVideoUrl || course?.videoFileUrl) && (
+                        <div className="admin-card p-5 space-y-3">
+                            <h4 className="text-sm font-black text-brand-navy dark:text-white">{t('admin.panel_media')}</h4>
+                            {course.coverImageUrl && (
+                                <a href={course.coverImageUrl} target="_blank" rel="noreferrer" className="block break-all text-sm font-bold text-brand-navy-light underline dark:text-brand-gold-light">
+                                    {t('createCourse.cover_label')}: {course.coverImageUrl}
+                                </a>
+                            )}
+                            {course.introVideoUrl && (
+                                <a href={course.introVideoUrl} target="_blank" rel="noreferrer" className="block break-all text-sm font-bold text-brand-navy-light underline dark:text-brand-gold-light">
+                                    {t('createCourse.intro_video_url_label')}: {course.introVideoUrl}
+                                </a>
+                            )}
+                            {course.videoFileUrl && (
+                                <a href={course.videoFileUrl} target="_blank" rel="noreferrer" className="block break-all text-sm font-bold text-brand-navy-light underline dark:text-brand-gold-light">
+                                    {t('createCourse.video_file_label')}: {course.videoFileUrl}
+                                </a>
+                            )}
+                        </div>
+                    )}
+
+                    {((course?.chapters?.length ?? 0) > 0 || (course?.modules?.length ?? 0) > 0) && (
+                        <div className="admin-card p-5 space-y-4">
+                            <h4 className="text-sm font-black text-brand-navy dark:text-white">{t('admin.panel_course_content')}</h4>
+                            {(course?.chapters?.length ?? 0) > 0 ? course?.chapters?.map((chapter, chapterIndex) => (
+                                <div key={chapter.id} className="rounded-xl border border-gray-200 p-4 dark:border-white/10">
+                                    <h5 className="mb-3 text-sm font-black text-brand-navy dark:text-white">
+                                        {chapterIndex + 1}. {pick(chapter, 'title')}
+                                    </h5>
+                                    <div className="space-y-3">
+                                        {(chapter.modules ?? []).map((lesson, lessonIndex) => (
+                                            <LessonDetails key={lesson.id} lesson={lesson} index={lessonIndex + 1} pick={pick} t={t} />
+                                        ))}
+                                    </div>
+                                </div>
+                            )) : (
+                                <div className="space-y-3">
+                                    {(course?.modules ?? []).map((lesson, lessonIndex) => (
+                                        <LessonDetails key={lesson.id} lesson={lesson} index={lessonIndex + 1} pick={pick} t={t} />
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {(course?.faqs?.length ?? 0) > 0 && (
+                        <div className="admin-card p-5 space-y-3">
+                            <h4 className="text-sm font-black text-brand-navy dark:text-white">{t('admin.panel_faqs')}</h4>
+                            {course?.faqs?.map((faq, index) => (
+                                <details key={index} className="rounded-xl border border-gray-200 p-3 dark:border-white/10">
+                                    <summary className="cursor-pointer text-sm font-bold text-brand-navy dark:text-white">{pick(faq, 'question')}</summary>
+                                    <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-gray-600 dark:text-gray-300">{pick(faq, 'answer')}</p>
+                                </details>
+                            ))}
+                        </div>
+                    )}
+
+                    {(course?.gallery?.length ?? 0) > 0 && (
+                        <div className="admin-card p-5 space-y-3">
+                            <h4 className="text-sm font-black text-brand-navy dark:text-white">{t('admin.panel_gallery')}</h4>
+                            <div className="grid gap-2 sm:grid-cols-2">
+                                {course?.gallery?.map((image, index) => (
+                                    <a key={index} href={image.url} target="_blank" rel="noreferrer" className="truncate rounded-lg border border-gray-200 px-3 py-2 text-xs font-bold text-brand-navy-light underline dark:border-white/10 dark:text-brand-gold-light">
+                                        {pick(image, 'alt') || image.url}
+                                    </a>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* ---- Per-status summary ---- */}
@@ -244,6 +400,8 @@ export default function CourseAdminPanel({ courseId }: { courseId: string }) {
                         </h4>
                         {rosterLoading ? (
                             <p className="text-sm text-gray-500 dark:text-gray-400">{t('common.loading')}</p>
+                        ) : rosterError ? (
+                            <p role="alert" className="text-sm text-red-600 dark:text-red-400">{rosterError}</p>
                         ) : (
                             <ul className="space-y-2">
                                 {ALL_STATUSES.map((s) => (

@@ -8,6 +8,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { PERMISSIONS } from '../auth/permissions/permissions';
 import { Role } from '@prisma/client';
+import { CreateLearningPathDto, UpdateLearningPathDto } from './dto/learning-path.dto';
 
 const STAFF = [Role.ADMIN, Role.COURSE_MANAGER];
 
@@ -22,8 +23,43 @@ export class LearningPathsController {
     @Roles(...STAFF)
     @RequirePermissions(PERMISSIONS.PATHS_WRITE)
     @Post()
-    create(@Body() dto: any, @Request() req: any) {
+    create(@Body() dto: CreateLearningPathDto, @Request() req: any) {
         return this.svc.createPath(dto, req.user.userId);
+    }
+
+    @ApiOperation({ summary: 'List all learning paths for course staff' })
+    @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+    @Roles(...STAFF)
+    @RequirePermissions(PERMISSIONS.PATHS_WRITE)
+    @Get('manage')
+    listForManagement() {
+        return this.svc.listPaths();
+    }
+
+    @ApiOperation({ summary: 'List courses with learning-path publishing readiness' })
+    @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+    @Roles(...STAFF)
+    @RequirePermissions(PERMISSIONS.PATHS_WRITE)
+    @Get('manage/courses')
+    listCoursesForManagement() {
+        return this.svc.listCoursesForManagement();
+    }
+
+    @ApiOperation({ summary: 'Get learning path learner and completion report' })
+    @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+    @Roles(...STAFF)
+    @RequirePermissions(PERMISSIONS.PATHS_WRITE)
+    @Get('manage/:id/report')
+    report(@Param('id') id: string) {
+        return this.svc.getPathReport(id);
+    }
+
+    @ApiOperation({ summary: 'List the current student learning paths and progress' })
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(Role.STUDENT)
+    @Get('my')
+    myPaths(@Request() req: any) {
+        return this.svc.getStudentPaths(req.user.userId);
     }
 
     @ApiOperation({ summary: 'List learning paths' })
@@ -35,7 +71,7 @@ export class LearningPathsController {
     @ApiOperation({ summary: 'Get learning path details' })
     @Get(':id')
     getOne(@Param('id') id: string) {
-        return this.svc.getPath(id);
+        return this.svc.getPublishedPath(id);
     }
 
     @ApiOperation({ summary: 'Update learning path' })
@@ -43,7 +79,7 @@ export class LearningPathsController {
     @Roles(...STAFF)
     @RequirePermissions(PERMISSIONS.PATHS_WRITE)
     @Patch(':id')
-    update(@Param('id') id: string, @Body() dto: any, @Request() req: any) {
+    update(@Param('id') id: string, @Body() dto: UpdateLearningPathDto, @Request() req: any) {
         return this.svc.updatePath(id, dto, req.user.userId, req.user.role);
     }
 
